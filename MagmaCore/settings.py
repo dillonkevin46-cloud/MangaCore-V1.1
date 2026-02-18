@@ -152,7 +152,7 @@ if not (BASE_DIR / "static").exists():
     (BASE_DIR / "static").mkdir(exist_ok=True)
 
 # Media files (for attachments and KB images)
-MEDIA_URL = "media/"
+MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 # Create media directory if it doesn't exist
@@ -172,10 +172,15 @@ LOGOUT_REDIRECT_URL = 'login'
 CKEDITOR_UPLOAD_PATH = "uploads/"
 CKEDITOR_CONFIGS = {
     'default': {
-        'toolbar': [
-            ['Bold', 'Italic', 'BulletedList', 'NumberedList', 'Image', 'Link', 'Undo', 'Redo']
-        ],
+        'toolbar': 'full',
         'height': 300,
         'width': '100%',
+        'extraPlugins': ','.join([
+            'uploadimage', # Enable drag-drop/paste uploads
+            'image2',      # Enhanced Image plugin
+        ]),
+        'removePlugins': 'image', # Remove default image plugin to use image2
+        'filebrowserUploadUrl': '/ckeditor/upload/',
+        'filebrowserBrowseUrl': '/ckeditor/browse/',
     },
 }
