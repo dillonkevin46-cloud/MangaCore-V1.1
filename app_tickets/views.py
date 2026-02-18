@@ -16,11 +16,17 @@ class TicketListView(LoginRequiredMixin, ListView):
         queryset = super().get_queryset()
         status = self.request.GET.get('status')
         priority = self.request.GET.get('priority')
+        filter_type = self.request.GET.get('filter')
 
         if status:
             queryset = queryset.filter(status=status)
         if priority:
             queryset = queryset.filter(priority=priority)
+
+        if filter_type == 'my_tickets':
+            queryset = queryset.filter(
+                Q(assigned_agent=self.request.user) | Q(creator=self.request.user)
+            )
 
         return queryset.order_by('-created_at')
 
@@ -35,6 +41,11 @@ class TicketCreateView(LoginRequiredMixin, CreateView):
     form_class = TicketForm
     template_name = 'app_tickets/ticket_create.html'
     success_url = reverse_lazy('app_tickets:ticket_list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
 
     def form_valid(self, form):
         form.instance.creator = self.request.user
@@ -78,8 +89,15 @@ class TicketUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     template_name = 'app_tickets/ticket_create.html'
     context_object_name = 'ticket'
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
     def test_func(self):
-        return self.request.user.is_staff
+        # Allow staff or creator to update
+        ticket = self.get_object()
+        return self.request.user.is_staff or ticket.creator == self.request.user
 
     def get_success_url(self):
         return reverse_lazy('app_tickets:ticket_detail', kwargs={'pk': self.object.pk})
