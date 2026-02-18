@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="glass-panel p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <h2 class="text-white">{{ ticket.title }}</h2>
+                <div>
+                    <span class="badge {% if ticket.status == 'OPEN' %}bg-success{% elif ticket.status == 'IN_PROGRESS' %}bg-warning{% else %}bg-secondary{% endif %} fs-6 me-2">
+                        {{ ticket.get_status_display }}
+                    </span>
+                    <span class="badge {% if ticket.priority == 'CRITICAL' %}bg-danger{% elif ticket.priority == 'HIGH' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %} fs-6">
+                        {{ ticket.get_priority_display }}
+                    </span>
+                </div>
+            </div>
+
+            <div class="text-muted mb-4 small">
+                Reported by <strong class="text-white">{{ ticket.creator.username }}</strong> on {{ ticket.created_at|date:"M d, Y H:i" }}
+            </div>
+
+            <div class="mb-4 text-white">
+                {{ ticket.description|linebreaks }}
+            </div>
+
+            {% if ticket.attachment %}
+                <div class="mb-4">
+                    <h5 class="text-white">Attachment</h5>
+                    <a href="{{ ticket.attachment.url }}" class="btn btn-sm btn-outline-light" target="_blank">
+                        <i class="bi bi-paperclip"></i> Download Attachment
+                    </a>
+                </div>
+            {% endif %}
+
+            {% if user.is_staff %}
+                <div class="mt-4 border-top border-secondary pt-3">
+                    <a href="{% url 'app_tickets:ticket_update' ticket.id %}" class="btn btn-sm btn-warning me-2">Edit Ticket</a>
+                    <a href="{% url 'app_tickets:ticket_delete' ticket.id %}" class="btn btn-sm btn-danger">Delete Ticket</a>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="glass-panel p-4">
+            <h3 class="text-white mb-4">Comments</h3>
+
+            {% for comment in comments %}
+                <div class="mb-3 p-3 rounded" style="background: rgba(255, 255, 255, 0.1);">
+                    <div class="d-flex justify-content-between mb-2">
+                        <strong class="text-white">{{ comment.author.username }}</strong>
+                        <small class="text-muted">{{ comment.created_at|timesince }} ago</small>
+                    </div>
+                    <div class="text-white">
+                        {{ comment.content|linebreaks }}
+                    </div>
+                    {% if not comment.is_public %}
+                        <div class="mt-2">
+                            <span class="badge bg-warning text-dark">Staff Only</span>
+                        </div>
+                    {% endif %}
+                </div>
+            {% empty %}
+                <p class="text-white">No comments yet.</p>
+            {% endfor %}
+
+            <div class="mt-4">
+                <h4 class="text-white mb-3">Add Comment</h4>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="{{ comment_form.content.id_for_label }}" class="form-label text-white">Comment</label>
+                        {{ comment_form.content }}
+                    </div>
+                    {% if user.is_staff %}
+                        <div class="mb-3 form-check">
+                            {{ comment_form.is_public }}
+                            <label class="form-check-label text-white" for="{{ comment_form.is_public.id_for_label }}">
+                                Public (Visible to user)
+                            </label>
+                        </div>
+                    {% endif %}
+                    <button type="submit" class="btn btn-primary">Post Comment</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
