@@ -39,3 +39,13 @@ class AssetTests(TestCase):
         self.client.login(username='staffuser', password='password')
         response = self.client.get(reverse('app_assets:asset_create'))
         self.assertEqual(response.status_code, 200)
+
+    def test_location_list_access_denied_for_regular_user(self):
+        self.client.login(username='testuser', password='password')
+        response = self.client.get(reverse('app_assets:location_list'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_location_list_access_allowed_for_staff_user(self):
+        self.client.login(username='staffuser', password='password')
+        response = self.client.get(reverse('app_assets:location_list'))
+        self.assertEqual(response.status_code, 200)

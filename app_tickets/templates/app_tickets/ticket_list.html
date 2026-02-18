@@ -14,7 +14,7 @@
 
 <div class="glass-panel p-4 mb-4">
     <form method="get" class="row g-3">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <select name="status" class="form-select bg-transparent text-white border-white">
                 <option value="" class="text-dark">All Statuses</option>
                 {% for status, label in status_choices %}
@@ -22,7 +22,7 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <select name="priority" class="form-select bg-transparent text-white border-white">
                 <option value="" class="text-dark">All Priorities</option>
                 {% for priority, label in priority_choices %}
@@ -30,7 +30,15 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
+             <div class="form-check pt-2">
+                <input class="form-check-input" type="checkbox" name="filter" value="my_tickets" id="myTickets" {% if request.GET.filter == 'my_tickets' %}checked{% endif %}>
+                <label class="form-check-label text-white" for="myTickets">
+                    My Tickets
+                </label>
+            </div>
+        </div>
+        <div class="col-md-3">
             <button type="submit" class="btn btn-primary w-100">Filter</button>
         </div>
     </form>

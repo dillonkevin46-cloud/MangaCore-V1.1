@@ -3,8 +3,8 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.urls import reverse_lazy
 from django.db.models import Q
-from .models import Article
-from .forms import ArticleForm
+from .models import Article, Category
+from .forms import ArticleForm, CategoryForm
 
 class ArticleListView(LoginRequiredMixin, ListView):
     model = Article
@@ -58,6 +58,34 @@ class ArticleDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = Article
     template_name = 'app_kb/article_confirm_delete.html'
     success_url = reverse_lazy('app_kb:article_list')
+
+    def test_func(self):
+        return self.request.user.is_staff
+
+class CategoryListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = Category
+    template_name = 'app_kb/category_list.html'
+    context_object_name = 'categories'
+
+    def get_queryset(self):
+        return super().get_queryset().order_by('name')
+
+    def test_func(self):
+        return self.request.user.is_staff
+
+class CategoryCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = Category
+    form_class = CategoryForm
+    template_name = 'app_kb/category_form.html'
+    success_url = reverse_lazy('app_kb:category_list')
+
+    def test_func(self):
+        return self.request.user.is_staff
+
+class CategoryDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = Category
+    template_name = 'app_kb/category_confirm_delete.html'
+    success_url = reverse_lazy('app_kb:category_list')
 
     def test_func(self):
         return self.request.user.is_staff

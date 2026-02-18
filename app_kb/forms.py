@@ -1,5 +1,14 @@
 from django import forms
-from .models import Article
+from .models import Article, Category
+
+class CategoryForm(forms.ModelForm):
+    class Meta:
+        model = Category
+        fields = ['name', 'description']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control bg-transparent text-white border-white'}),
+            'description': forms.Textarea(attrs={'class': 'form-control bg-transparent text-white border-white', 'rows': 3}),
+        }
 
 class ArticleForm(forms.ModelForm):
     class Meta:
