@@ -52,11 +52,16 @@
             --bs-table-bg: transparent;
             --bs-table-color: #fff;
             --bs-table-hover-color: #fff;
-            --bs-table-hover-bg: rgba(255,255,255,0.1);
+            --bs-table-hover-bg: rgba(255,255,255,0.2);
+        }
+
+        .table-hover tbody tr:hover {
+            color: #fff;
+            background-color: rgba(255, 255, 255, 0.2);
         }
 
         .navbar {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.3);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -65,18 +70,21 @@
 
         .navbar-brand {
             font-weight: 700;
-            color: #2c3e50 !important;
+            color: #fff !important;
             letter-spacing: -0.5px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
 
         .nav-link {
             font-weight: 500;
-            color: #555 !important;
+            color: rgba(255, 255, 255, 0.9) !important;
             transition: color 0.3s ease;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
         }
 
         .nav-link:hover, .nav-link.active {
-            color: #764ba2 !important;
+            color: #fff !important;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
         }
 
         .card {
@@ -127,6 +135,12 @@
             padding-top: 2rem;
             padding-bottom: 2rem;
         }
+
+        /* Fix Select Options */
+        select option {
+            background: #fff;
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -153,6 +167,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="/kb/">Knowledge Base</a>
                     </li>
+                    {% if user.is_staff %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/settings/">Settings</a>
+                    </li>
+                    {% endif %}
                 </ul>
                 <ul class="navbar-nav ms-auto">
                     {% if user.is_authenticated %}
@@ -163,12 +182,17 @@
                             <ul class="dropdown-menu dropdown-menu-end glass-panel border-0">
                                 <li><a class="dropdown-item" href="#">Profile</a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="/admin/logout/">Logout</a></li>
+                                <li>
+                                    <form action="{% url 'logout' %}" method="post">
+                                        {% csrf_token %}
+                                        <button type="submit" class="dropdown-item">Logout</button>
+                                    </form>
+                                </li>
                             </ul>
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="/admin/login/">Login</a>
+                            <a class="nav-link" href="{% url 'login' %}">Login</a>
                         </li>
                     {% endif %}
                 </ul>
@@ -181,9 +205,12 @@
             <div class="row mb-4">
                 <div class="col-12">
                     {% for message in messages %}
-                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show glass-panel" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show glass-panel d-flex align-items-center" role="alert">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            <div>
+                                {{ message }}
+                            </div>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
                     {% endfor %}
                 </div>
