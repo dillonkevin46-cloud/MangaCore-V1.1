@@ -27,7 +27,6 @@ class Asset(models.Model):
     model_no = models.CharField(max_length=100, blank=True)
     make = models.CharField(max_length=100, blank=True)
     notes = models.TextField(blank=True)
-    specifications = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

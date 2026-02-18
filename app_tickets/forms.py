@@ -1,4 +1,6 @@
 from django import forms
+from ckeditor.widgets import CKEditorWidget
+from ckeditor_uploader.widgets import CKEditorUploadingWidget
 from .models import Ticket, Comment
 
 class TicketForm(forms.ModelForm):
@@ -7,7 +9,9 @@ class TicketForm(forms.ModelForm):
         fields = ['title', 'description', 'status', 'priority', 'assigned_agent', 'attachment']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control bg-transparent text-white border-white'}),
-            'description': forms.Textarea(attrs={'class': 'form-control bg-transparent text-white border-white', 'rows': 5}),
+            # description uses CKEditorUploadingWidget, we don't need 'class': 'form-control' as ckeditor handles its own styling usually,
+            # but we can try to apply some attrs if needed. Usually ckeditor replaces the textarea.
+            'description': CKEditorUploadingWidget(config_name='default'),
             'status': forms.Select(attrs={'class': 'form-select bg-transparent text-white border-white'}),
             'priority': forms.Select(attrs={'class': 'form-select bg-transparent text-white border-white'}),
             'assigned_agent': forms.Select(attrs={'class': 'form-select bg-transparent text-white border-white'}),

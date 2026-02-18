@@ -1,4 +1,5 @@
 from django import forms
+from ckeditor_uploader.widgets import CKEditorUploadingWidget
 from .models import Article, Category
 
 class CategoryForm(forms.ModelForm):
@@ -17,6 +18,6 @@ class ArticleForm(forms.ModelForm):
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control bg-transparent text-white border-white'}),
             'category': forms.Select(attrs={'class': 'form-select bg-transparent text-white border-white'}),
-            'content': forms.Textarea(attrs={'class': 'form-control bg-transparent text-white border-white', 'rows': 10}),
+            'content': CKEditorUploadingWidget(config_name='default'),
             'is_public': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
