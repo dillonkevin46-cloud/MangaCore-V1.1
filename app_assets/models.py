@@ -22,7 +22,7 @@ class Asset(models.Model):
     name = models.CharField(max_length=200)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name='assets')
     location = models.ForeignKey(Location, on_delete=models.SET_NULL, null=True, blank=True, related_name='assets')
-    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_assets')
+    assigned_to = models.CharField(max_length=200, blank=True, null=True)
     serial_number = models.CharField(max_length=100, blank=True)
     model_no = models.CharField(max_length=100, blank=True)
     make = models.CharField(max_length=100, blank=True)
