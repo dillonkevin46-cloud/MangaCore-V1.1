@@ -1,4 +1,5 @@
 from django.urls import path
+from django.contrib.auth import views as auth_views
 from . import views
 
 app_name = 'app_core'
@@ -8,4 +9,6 @@ urlpatterns = [
     path('dashboard/', views.dashboard, name='dashboard'),
     path('users/', views.UserListView.as_view(), name='user_list'),
     path('users/create/', views.UserCreateView.as_view(), name='user_create'),
+    path('settings/', views.SettingsView.as_view(), name='settings'),
+    path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
 ]

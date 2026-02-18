@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="text-center mb-5">
+            <i class="bi bi-fire text-danger" style="font-size: 4rem;"></i>
+            <h1 class="display-4 fw-bold mt-2">MagmaCore</h1>
+            <p class="text-white-50 lead">Authentication Required</p>
+        </div>
+
+        <div class="glass-panel p-5">
+            <h2 class="mb-4 text-white text-center">Login</h2>
+
+            <form method="post" action="{% url 'login' %}">
+                {% csrf_token %}
+
+                {% if form.errors %}
+                    <div class="alert alert-danger glass-panel text-white border-danger mb-4">
+                        Your username and password didn't match. Please try again.
+                    </div>
+                {% endif %}
+
+                <div class="mb-4">
+                    <label for="id_username" class="form-label text-white">Username</label>
+                    <input type="text" name="username" autofocus autocapitalize="none" autocomplete="username" maxlength="150" required id="id_username" class="form-control bg-transparent text-white border-white">
+                </div>
+
+                <div class="mb-4">
+                    <label for="id_password" class="form-label text-white">Password</label>
+                    <input type="password" name="password" autocomplete="current-password" required id="id_password" class="form-control bg-transparent text-white border-white">
+                </div>
+
+                <input type="hidden" name="next" value="{{ next }}">
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg">Sign In</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

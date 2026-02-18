@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from django.views.generic import ListView, CreateView
+from django.views.generic import ListView, CreateView, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.urls import reverse_lazy
 from django.contrib.auth import get_user_model
@@ -27,6 +27,10 @@ class SuperuserRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return self.request.user.is_superuser
 
+class StaffRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.is_staff
+
 class UserListView(LoginRequiredMixin, SuperuserRequiredMixin, ListView):
     model = User
     template_name = 'app_core/user_list.html'
@@ -40,3 +44,6 @@ class UserCreateView(LoginRequiredMixin, SuperuserRequiredMixin, CreateView):
     form_class = UserCreateForm
     template_name = 'app_core/user_form.html'
     success_url = reverse_lazy('app_core:user_list')
+
+class SettingsView(LoginRequiredMixin, StaffRequiredMixin, TemplateView):
+    template_name = 'app_core/settings.html'
