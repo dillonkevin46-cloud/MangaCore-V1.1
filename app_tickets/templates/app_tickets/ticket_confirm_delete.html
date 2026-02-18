@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="glass-panel p-5 text-center">
+            <h2 class="text-white mb-4">Are you sure?</h2>
+            <p class="text-white mb-4">Do you really want to delete ticket <strong>"{{ ticket.title }}"</strong>? This process cannot be undone.</p>
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-lg me-2">Delete</button>
+                <a href="{% url 'app_tickets:ticket_detail' ticket.id %}" class="btn btn-outline-light btn-lg">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

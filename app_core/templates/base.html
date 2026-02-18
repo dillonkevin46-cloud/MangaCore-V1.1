@@ -13,13 +13,13 @@
 
     <style>
         :root {
-            --glass-bg: rgba(255, 255, 255, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.5);
-            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
             --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             --body-bg: linear-gradient(45deg, #1a1a2e, #16213e, #0f3460);
-            --text-color: #333;
-            --text-muted: #6c757d;
+            --text-color: #fff;
+            --text-muted: #adb5bd;
         }
 
         body {
@@ -44,13 +44,22 @@
             border-radius: 20px;
             border: 1px solid var(--glass-border);
             box-shadow: var(--glass-shadow);
+            color: #fff;
+        }
+
+        /* Override bootstrap table transparency */
+        .table {
+            --bs-table-bg: transparent;
+            --bs-table-color: #fff;
+            --bs-table-hover-color: #fff;
+            --bs-table-hover-bg: rgba(255,255,255,0.1);
         }
 
         .navbar {
-            background: rgba(255, 255, 255, 0.85);
+            background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
         }
 
@@ -105,8 +114,11 @@
             color: #fff; /* Assuming dark background for main headings unless in card */
         }
 
-        /* Text inside cards should be dark */
-        .glass-panel h1, .glass-panel h2, .glass-panel h3, .glass-panel h4, .glass-panel h5, .glass-panel h6,
+        /* Text inside cards should be white in dark mode */
+        .glass-panel h1, .glass-panel h2, .glass-panel h3, .glass-panel h4, .glass-panel h5, .glass-panel h6 {
+             color: #fff;
+        }
+
         .card h1, .card h2, .card h3, .card h4, .card h5, .card h6 {
              color: #2c3e50;
         }
