@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - MagmaCore{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <h2 class="text-white">Dashboard</h2>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card h-100 border-0 p-4">
+            <h4 class="card-title"><i class="bi bi-ticket-perforated me-2 text-primary"></i>My Tickets</h4>
+            <p class="card-text mt-2">View and manage your open tickets.</p>
+            <a href="/tickets/" class="btn btn-primary mt-auto">Go to Tickets</a>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 border-0 p-4">
+            <h4 class="card-title"><i class="bi bi-laptop me-2 text-success"></i>Assets</h4>
+            <p class="card-text mt-2">Browse the company asset registry.</p>
+            <a href="/assets/" class="btn btn-primary mt-auto">View Assets</a>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100 border-0 p-4">
+            <h4 class="card-title"><i class="bi bi-book me-2 text-info"></i>Knowledge Base</h4>
+            <p class="card-text mt-2">Find answers to common questions.</p>
+            <a href="/kb/" class="btn btn-primary mt-auto">Search KB</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
