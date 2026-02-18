@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from ckeditor_uploader.fields import RichTextUploadingField
 
 class Ticket(models.Model):
     class Status(models.TextChoices):
@@ -16,7 +17,7 @@ class Ticket(models.Model):
         CRITICAL = 'CRITICAL', _('Critical')
 
     title = models.CharField(max_length=200)
-    description = models.TextField()
+    description = RichTextUploadingField()
     status = models.CharField(
         max_length=20,
         choices=Status.choices,

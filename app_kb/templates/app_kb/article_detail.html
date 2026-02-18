@@ -23,7 +23,7 @@
             </div>
 
             <div class="text-white article-content">
-                {{ article.content|linebreaks }}
+                {{ article.content|safe }}
             </div>
 
             {% if user.is_staff %}

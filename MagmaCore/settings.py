@@ -41,6 +41,8 @@ INSTALLED_APPS = [
 
     # Third party
     # "whitenoise.runserver_nostatic", # Optional for dev
+    "ckeditor",
+    "ckeditor_uploader",
 
     # Local apps
     "app_core.apps.AppCoreConfig",
@@ -165,3 +167,15 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Authentication
 LOGIN_REDIRECT_URL = 'app_core:dashboard'
 LOGOUT_REDIRECT_URL = 'login'
+
+# CKEditor
+CKEDITOR_UPLOAD_PATH = "uploads/"
+CKEDITOR_CONFIGS = {
+    'default': {
+        'toolbar': [
+            ['Bold', 'Italic', 'BulletedList', 'NumberedList', 'Image', 'Link', 'Undo', 'Redo']
+        ],
+        'height': 300,
+        'width': '100%',
+    },
+}

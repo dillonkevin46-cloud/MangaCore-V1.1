@@ -1,6 +1,8 @@
 from django import forms
+from django.contrib.auth import get_user_model
 from .models import Asset, Category, Location
-import json
+
+User = get_user_model()
 
 class LocationForm(forms.ModelForm):
     class Meta:
@@ -21,13 +23,6 @@ class CategoryForm(forms.ModelForm):
         }
 
 class AssetForm(forms.ModelForm):
-    specifications_json = forms.CharField(
-        widget=forms.Textarea(attrs={'class': 'form-control bg-transparent text-white border-white', 'rows': 5, 'placeholder': '{"key": "value"}'}),
-        required=False,
-        label="Specifications (JSON)",
-        help_text="Enter valid JSON key-value pairs."
-    )
-
     class Meta:
         model = Asset
         fields = ['name', 'category', 'location', 'assigned_to', 'serial_number', 'model_no', 'make', 'notes']
@@ -44,21 +39,5 @@ class AssetForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.instance and self.instance.pk and self.instance.specifications:
-            self.fields['specifications_json'].initial = json.dumps(self.instance.specifications, indent=2)
-
-    def clean_specifications_json(self):
-        data = self.cleaned_data['specifications_json']
-        if not data:
-            return {}
-        try:
-            return json.loads(data)
-        except json.JSONDecodeError:
-            raise forms.ValidationError("Invalid JSON format")
-
-    def save(self, commit=True):
-        instance = super().save(commit=False)
-        instance.specifications = self.cleaned_data['specifications_json']
-        if commit:
-            instance.save()
-        return instance
+        # Filter assigned_to to only show staff members
+        self.fields['assigned_to'].queryset = User.objects.filter(is_staff=True)

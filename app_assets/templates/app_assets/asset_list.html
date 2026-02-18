@@ -15,69 +15,89 @@
     </div>
 </div>
 
-<div class="glass-panel p-4">
-    <div class="table-responsive">
-        <table class="table table-hover text-white">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Category</th>
-                    <th>Specifications</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for asset in assets %}
-                <tr>
-                    <td>#{{ asset.id }}</td>
-                    <td>{{ asset.name }}</td>
-                    <td>
-                        {% if asset.category %}
-                            <span class="badge bg-info text-dark">{{ asset.category.name }}</span>
-                        {% else %}
-                            <span class="text-muted">Uncategorized</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if asset.specifications %}
-                            <small>
-                            {% for key, value in asset.specifications.items %}
-                                <strong>{{ key }}:</strong> {{ value }}{% if not forloop.last %}, {% endif %}
-                            {% endfor %}
-                            </small>
-                        {% else %}
-                            <span class="text-muted small">No specs</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if user.is_staff %}
-                            <a href="{% url 'app_assets:asset_update' asset.id %}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
-                            <a href="{% url 'app_assets:asset_delete' asset.id %}" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></a>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center">No assets found.</td>
-                </tr>
+<div class="row">
+    <!-- Sidebar -->
+    <div class="col-md-3 mb-4">
+        <div class="glass-panel p-3">
+            <h5 class="text-white mb-3">Categories</h5>
+            <div class="list-group list-group-flush bg-transparent">
+                <a href="{% url 'app_assets:asset_list' %}" class="list-group-item list-group-item-action bg-transparent text-white {% if not selected_category %}active fw-bold{% endif %}" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    All Assets
+                </a>
+                {% for category in categories %}
+                <a href="?category={{ category.id }}" class="list-group-item list-group-item-action bg-transparent text-white {% if selected_category|add:'0' == category.id %}active fw-bold{% endif %}" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    {{ category.name }}
+                </a>
                 {% endfor %}
-            </tbody>
-        </table>
+            </div>
+        </div>
     </div>
 
-    {% if is_paginated %}
-    <nav aria-label="Page navigation" class="mt-4">
-        <ul class="pagination justify-content-center">
-            {% if page_obj.has_previous %}
-                <li class="page-item"><a class="page-link glass-panel text-white" href="?page={{ page_obj.previous_page_number }}">&laquo;</a></li>
+    <!-- Main Content -->
+    <div class="col-md-9">
+        <div class="glass-panel p-4">
+            <div class="table-responsive">
+                <table class="table table-hover text-white">
+                    <thead>
+                        <tr>
+                            <th>Make</th>
+                            <th>Model</th>
+                            <th>Serial</th>
+                            <th>Location</th>
+                            <th>Assigned To</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for asset in assets %}
+                        <tr>
+                            <td>{{ asset.make }}</td>
+                            <td>{{ asset.model_no }}</td>
+                            <td>{{ asset.serial_number }}</td>
+                            <td>
+                                {% if asset.location %}
+                                    <span class="badge bg-secondary">{{ asset.location.name }}</span>
+                                {% else %}
+                                    <span class="text-muted small">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if asset.assigned_to %}
+                                    <span class="badge bg-info text-dark">{{ asset.assigned_to.username }}</span>
+                                {% else %}
+                                    <span class="text-muted small">Unassigned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.is_staff %}
+                                    <a href="{% url 'app_assets:asset_update' asset.id %}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
+                                    <a href="{% url 'app_assets:asset_delete' asset.id %}" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No assets found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if is_paginated %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link glass-panel text-white" href="?page={{ page_obj.previous_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}">&laquo;</a></li>
+                    {% endif %}
+                    <li class="page-item disabled"><span class="page-link glass-panel text-white">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+                    {% if page_obj.has_next %}
+                        <li class="page-item"><a class="page-link glass-panel text-white" href="?page={{ page_obj.next_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}">&raquo;</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
             {% endif %}
-            <li class="page-item disabled"><span class="page-link glass-panel text-white">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
-            {% if page_obj.has_next %}
-                <li class="page-item"><a class="page-link glass-panel text-white" href="?page={{ page_obj.next_page_number }}">&raquo;</a></li>
-            {% endif %}
-        </ul>
-    </nav>
-    {% endif %}
+        </div>
+    </div>
 </div>
 {% endblock %}
