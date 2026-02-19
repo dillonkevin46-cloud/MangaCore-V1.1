@@ -5,8 +5,9 @@
     <div class="col-md-10">
         <div class="glass-panel p-5">
             <h2 class="mb-4 text-white">{% if form.instance.pk %}Edit Article{% else %}Create Knowledge Base Article{% endif %}</h2>
-            <form method="post">
+            <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
+                {{ form.media }}
 
                 {% for field in form %}
                 <div class="mb-3">

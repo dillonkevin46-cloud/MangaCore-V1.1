@@ -5,6 +5,7 @@ app_name = 'app_tickets'
 
 urlpatterns = [
     path('', views.TicketListView.as_view(), name='ticket_list'),
+    path('archive/', views.TicketArchiveListView.as_view(), name='ticket_archive'),
     path('create/', views.TicketCreateView.as_view(), name='ticket_create'),
     path('<int:pk>/', views.TicketDetailView.as_view(), name='ticket_detail'),
     path('<int:pk>/update/', views.TicketUpdateView.as_view(), name='ticket_update'),

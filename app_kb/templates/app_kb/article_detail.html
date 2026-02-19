@@ -26,6 +26,15 @@
                 {{ article.content|safe }}
             </div>
 
+            {% if article.attachment %}
+                <div class="mt-4 pt-3 border-top border-secondary">
+                    <h5 class="text-white">Attachment</h5>
+                    <a href="{{ article.attachment.url }}" class="btn btn-outline-light" target="_blank">
+                        <i class="bi bi-paperclip"></i> Download Attachment
+                    </a>
+                </div>
+            {% endif %}
+
             {% if user.is_staff %}
                 <div class="mt-5 pt-4 border-top border-secondary">
                     <a href="{% url 'app_kb:article_update' article.id %}" class="btn btn-warning me-2">Edit Article</a>

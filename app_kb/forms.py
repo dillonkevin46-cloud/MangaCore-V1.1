@@ -14,10 +14,11 @@ class CategoryForm(forms.ModelForm):
 class ArticleForm(forms.ModelForm):
     class Meta:
         model = Article
-        fields = ['title', 'category', 'content', 'is_public']
+        fields = ['title', 'category', 'content', 'attachment', 'is_public']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control bg-transparent text-white border-white'}),
             'category': forms.Select(attrs={'class': 'form-select bg-transparent text-white border-white'}),
             'content': CKEditorUploadingWidget(config_name='default'),
+            'attachment': forms.ClearableFileInput(attrs={'class': 'form-control bg-transparent text-white border-white'}),
             'is_public': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
