@@ -1,104 +1,65 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-md-6">
-        <h1>IT Assets</h1>
-    </div>
-    <div class="col-md-6 text-end">
-        <a href="{% url 'app_assets:category_list' %}" class="btn btn-outline-light me-2">
-            <i class="bi bi-tags"></i> Manage Categories
-        </a>
-        <a href="{% url 'app_assets:asset_create' %}" class="btn btn-primary">
-            <i class="bi bi-plus-lg"></i> Add Asset
-        </a>
-    </div>
-</div>
-
 <div class="row">
-    <!-- Sidebar -->
-    <div class="col-md-3 mb-4">
-        <div class="glass-panel p-3">
-            <h5 class="text-white mb-3">Categories</h5>
-            <div class="list-group list-group-flush bg-transparent">
-                <a href="{% url 'app_assets:asset_list' %}" class="list-group-item list-group-item-action bg-transparent text-white {% if not selected_category %}active fw-bold{% endif %}" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                    All Assets
-                </a>
-                {% for category in categories %}
-                <a href="?category={{ category.id }}" class="list-group-item list-group-item-action bg-transparent text-white {% if selected_category|add:'0' == category.id %}active fw-bold{% endif %}" style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                    {{ category.name }}
-                </a>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Content -->
-    <div class="col-md-9">
+    <div class="col-12">
         <div class="glass-panel p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="text-white mb-0">Assets</h2>
+                <div>
+                    <a href="{% url 'app_assets:category_list' %}" class="btn btn-outline-light me-2">Manage Categories</a>
+                    {% if user.is_staff %}
+                    <a href="{% url 'app_assets:asset_create' %}" class="btn btn-primary">
+                        <i class="bi bi-plus-lg"></i> Add Asset
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
             <div class="table-responsive">
                 <table class="table table-hover text-white">
                     <thead>
                         <tr>
-                            <th>Make</th>
-                            <th>Model</th>
-                            <th>Serial</th>
-                            <th>IP Address</th>
-                            <th>Location</th>
-                            <th>Assigned To</th>
-                            <th>Actions</th>
+                            <th scope="col">Name</th>
+                            <th scope="col">Category</th>
+                            <th scope="col">Location</th>
+                            <th scope="col">Assigned To</th>
+                            <th scope="col">IP Address</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for asset in assets %}
                         <tr>
-                            <td>{{ asset.make }}</td>
-                            <td>{{ asset.model_no }}</td>
-                            <td>{{ asset.serial_number }}</td>
+                            <td>
+                                <a href="{% url 'app_assets:asset_detail' asset.pk %}" class="text-white text-decoration-none fw-bold">
+                                    {{ asset.name }}
+                                </a>
+                            </td>
+                            <td>{{ asset.category.name|default:"-" }}</td>
+                            <td>{{ asset.location.name|default:"-" }}</td>
+                            <td>{{ asset.assigned_to|default:"-" }}</td>
                             <td>{{ asset.ip_address|default:"-" }}</td>
                             <td>
-                                {% if asset.location %}
-                                    <span class="badge bg-secondary">{{ asset.location.name }}</span>
+                                {% if asset.is_monitored %}
+                                    <span class="badge bg-info text-dark">Monitored</span>
                                 {% else %}
-                                    <span class="text-muted small">N/A</span>
+                                    <span class="badge bg-secondary">Unmonitored</span>
                                 {% endif %}
                             </td>
                             <td>
-                                {% if asset.assigned_to %}
-                                    <span class="badge bg-info text-dark">{{ asset.assigned_to }}</span>
-                                {% else %}
-                                    <span class="text-muted small">Unassigned</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if user.is_staff %}
-                                    <a href="{% url 'app_assets:asset_update' asset.id %}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
-                                    <a href="{% url 'app_assets:asset_delete' asset.id %}" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></a>
-                                {% endif %}
+                                <a href="{% url 'app_assets:asset_detail' asset.pk %}" class="btn btn-sm btn-outline-light">View</a>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="text-center">No assets found.</td>
+                            <td colspan="7" class="text-center">No assets found.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-
-            {% if is_paginated %}
-            <nav aria-label="Page navigation" class="mt-4">
-                <ul class="pagination justify-content-center">
-                    {% if page_obj.has_previous %}
-                        <li class="page-item"><a class="page-link glass-panel text-white" href="?page={{ page_obj.previous_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}">&laquo;</a></li>
-                    {% endif %}
-                    <li class="page-item disabled"><span class="page-link glass-panel text-white">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
-                    {% if page_obj.has_next %}
-                        <li class="page-item"><a class="page-link glass-panel text-white" href="?page={{ page_obj.next_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}">&raquo;</a></li>
-                    {% endif %}
-                </ul>
-            </nav>
-            {% endif %}
         </div>
     </div>
 </div>

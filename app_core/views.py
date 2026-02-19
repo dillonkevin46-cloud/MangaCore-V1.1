@@ -1,10 +1,16 @@
-from django.shortcuts import render
+import json
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.views.generic import ListView, CreateView, TemplateView
+from django.views.generic import ListView, CreateView, TemplateView, View
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.urls import reverse_lazy
 from django.contrib.auth import get_user_model
+from django.http import HttpResponseRedirect
+from django.urls import reverse
 from .forms import UserCreateForm
+from .models import UserChecklistTask, AppNotification
+from app_tickets.models import Ticket
+from app_assets.models import Asset
 
 User = get_user_model()
 
@@ -13,7 +19,50 @@ def dashboard(request):
     """
     Main dashboard view.
     """
-    return render(request, 'app_core/dashboard.html')
+    # Ticket Stats
+    ticket_stats = {
+        'OPEN': Ticket.objects.filter(status=Ticket.Status.OPEN).count(),
+        'IN_PROGRESS': Ticket.objects.filter(status=Ticket.Status.IN_PROGRESS).count(),
+        'RESOLVED': Ticket.objects.filter(status=Ticket.Status.RESOLVED).count(),
+        'CLOSED': Ticket.objects.filter(status=Ticket.Status.CLOSED).count(),
+    }
+
+    # Asset Stats
+    monitored_assets_count = Asset.objects.filter(is_monitored=True).count()
+    # Simple logic: assume assets with IP and monitored=True are "Online" if we had a field,
+    # but for now we might count based on latest PingRecord.
+    # To simplify for the dashboard pie chart:
+    # Online = Monitored assets where last PingRecord.is_online = True
+    # Offline = Monitored assets where last PingRecord.is_online = False
+    # Unknown = Monitored assets with no records
+
+    online_count = 0
+    offline_count = 0
+    unknown_count = 0
+
+    monitored_assets = Asset.objects.filter(is_monitored=True)
+    for asset in monitored_assets:
+        last_record = asset.ping_records.order_by('-timestamp').first()
+        if last_record:
+            if last_record.is_online:
+                online_count += 1
+            else:
+                offline_count += 1
+        else:
+            unknown_count += 1
+
+    asset_stats = {
+        'monitored': monitored_assets_count,
+        'online': online_count,
+        'offline': offline_count,
+        'unknown': unknown_count
+    }
+
+    context = {
+        'ticket_stats_json': json.dumps(ticket_stats),
+        'asset_stats_json': json.dumps(asset_stats),
+    }
+    return render(request, 'app_core/index.html', context)
 
 def index(request):
     """
@@ -47,3 +96,25 @@ class UserCreateView(LoginRequiredMixin, SuperuserRequiredMixin, CreateView):
 
 class SettingsView(LoginRequiredMixin, StaffRequiredMixin, TemplateView):
     template_name = 'app_core/settings.html'
+
+class ChecklistView(LoginRequiredMixin, ListView):
+    model = UserChecklistTask
+    template_name = 'app_core/checklist.html'
+    context_object_name = 'tasks'
+
+    def get_queryset(self):
+        return UserChecklistTask.objects.filter(user=self.request.user).order_by('is_completed', '-created_at')
+
+class AddChecklistTaskView(LoginRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        task_text = request.POST.get('task')
+        if task_text:
+            UserChecklistTask.objects.create(user=request.user, task=task_text)
+        return redirect('app_core:checklist')
+
+class ToggleChecklistTaskView(LoginRequiredMixin, View):
+    def post(self, request, pk, *args, **kwargs):
+        task = get_object_or_404(UserChecklistTask, pk=pk, user=request.user)
+        task.is_completed = not task.is_completed
+        task.save()
+        return redirect('app_core:checklist')

@@ -1,16 +1,164 @@
 {% extends 'base.html' %}
 
 {% block content %}
+{% if user.is_authenticated %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-5 text-white fw-bold">Dashboard</h1>
+        <p class="text-white-50">Welcome back, {{ user.username }}!</p>
+    </div>
+</div>
+
+<!-- Stats Cards Row -->
+<div class="row mb-5">
+    <!-- Ticket Stats Card -->
+    <div class="col-md-6 col-lg-3 mb-4">
+        <div class="glass-panel p-4 h-100 position-relative overflow-hidden">
+            <h5 class="text-white-50 mb-3">Open Tickets</h5>
+            <h2 class="display-4 fw-bold text-white mb-0" id="stat-open-tickets">0</h2>
+            <i class="bi bi-ticket-perforated position-absolute end-0 bottom-0 mb-n2 me-n2 text-white-50" style="font-size: 6rem; opacity: 0.1;"></i>
+        </div>
+    </div>
+    <!-- Online Assets Card -->
+    <div class="col-md-6 col-lg-3 mb-4">
+        <div class="glass-panel p-4 h-100 position-relative overflow-hidden">
+            <h5 class="text-white-50 mb-3">Online Assets</h5>
+            <h2 class="display-4 fw-bold text-success mb-0" id="stat-online-assets">0</h2>
+             <i class="bi bi-hdd-network position-absolute end-0 bottom-0 mb-n2 me-n2 text-white-50" style="font-size: 6rem; opacity: 0.1;"></i>
+        </div>
+    </div>
+    <!-- Offline Assets Card -->
+     <div class="col-md-6 col-lg-3 mb-4">
+        <div class="glass-panel p-4 h-100 position-relative overflow-hidden">
+            <h5 class="text-white-50 mb-3">Offline Assets</h5>
+            <h2 class="display-4 fw-bold text-danger mb-0" id="stat-offline-assets">0</h2>
+             <i class="bi bi-exclamation-triangle position-absolute end-0 bottom-0 mb-n2 me-n2 text-white-50" style="font-size: 6rem; opacity: 0.1;"></i>
+        </div>
+    </div>
+     <!-- Checklist Quick Link -->
+     <div class="col-md-6 col-lg-3 mb-4">
+        <a href="{% url 'app_core:checklist' %}" class="text-decoration-none">
+            <div class="glass-panel p-4 h-100 position-relative overflow-hidden hover-effect">
+                <h5 class="text-white-50 mb-3">Daily Checklist</h5>
+                <h2 class="display-6 fw-bold text-white mb-0">View Tasks <i class="bi bi-arrow-right-short"></i></h2>
+                 <i class="bi bi-check2-square position-absolute end-0 bottom-0 mb-n2 me-n2 text-white-50" style="font-size: 6rem; opacity: 0.1;"></i>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="glass-panel p-4 h-100">
+            <h4 class="text-white mb-4">Ticket Status Distribution</h4>
+            <canvas id="ticketChart"></canvas>
+        </div>
+    </div>
+    <div class="col-md-6 mb-4">
+        <div class="glass-panel p-4 h-100">
+            <h4 class="text-white mb-4">Asset Monitoring Status</h4>
+            <canvas id="assetChart"></canvas>
+        </div>
+    </div>
+</div>
+
+{% else %}
 <div class="row justify-content-center">
     <div class="col-md-8 text-center">
-        <div class="glass-panel p-5">
-            <h1 class="display-4 mb-4">Welcome to MagmaCore</h1>
-            <p class="lead mb-4">The Unified IT Management Platform.</p>
+        <div class="glass-panel p-5 mt-5">
+            <h1 class="display-4 mb-4 text-white">Welcome to MagmaCore</h1>
+            <p class="lead mb-4 text-white-50">The Unified IT Management Platform.</p>
             <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-                <a href="/admin/login/" class="btn btn-primary btn-lg px-4 gap-3">Login</a>
+                <a href="{% url 'login' %}" class="btn btn-primary btn-lg px-4 gap-3">Login</a>
                 <a href="/kb/" class="btn btn-outline-light btn-lg px-4">Knowledge Base</a>
             </div>
         </div>
     </div>
 </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if user.is_authenticated %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Parse JSON data safely
+        const ticketStats = JSON.parse('{{ ticket_stats_json|escapejs }}');
+        const assetStats = JSON.parse('{{ asset_stats_json|escapejs }}');
+
+        // Update Stats Cards
+        document.getElementById('stat-open-tickets').textContent = ticketStats.OPEN || 0;
+        document.getElementById('stat-online-assets').textContent = assetStats.online || 0;
+        document.getElementById('stat-offline-assets').textContent = assetStats.offline || 0;
+
+        // Ticket Chart
+        const ctxTicket = document.getElementById('ticketChart').getContext('2d');
+        new Chart(ctxTicket, {
+            type: 'doughnut',
+            data: {
+                labels: ['Open', 'In Progress', 'Resolved', 'Closed'],
+                datasets: [{
+                    data: [
+                        ticketStats.OPEN,
+                        ticketStats.IN_PROGRESS,
+                        ticketStats.RESOLVED,
+                        ticketStats.CLOSED
+                    ],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.7)',
+                        'rgba(54, 162, 235, 0.7)',
+                        'rgba(75, 192, 192, 0.7)',
+                        'rgba(153, 102, 255, 0.7)'
+                    ],
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#fff' }
+                    }
+                }
+            }
+        });
+
+        // Asset Chart
+        const ctxAsset = document.getElementById('assetChart').getContext('2d');
+        new Chart(ctxAsset, {
+            type: 'pie',
+            data: {
+                labels: ['Online', 'Offline', 'Unknown'],
+                datasets: [{
+                    data: [
+                        assetStats.online,
+                        assetStats.offline,
+                        assetStats.unknown
+                    ],
+                    backgroundColor: [
+                        'rgba(75, 192, 192, 0.7)',
+                        'rgba(255, 99, 132, 0.7)',
+                        'rgba(201, 203, 207, 0.7)'
+                    ],
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#fff' }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endif %}
 {% endblock %}
