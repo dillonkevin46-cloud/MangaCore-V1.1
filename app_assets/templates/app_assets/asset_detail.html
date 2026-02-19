@@ -89,9 +89,28 @@
         <!-- Sidebar: Could show Ping History or Monitoring Status Detail -->
         <div class="glass-panel p-4 mb-4">
             <h5 class="text-white mb-3">Monitoring Status</h5>
-            <!-- Placeholder for future Ping Records -->
-            <p class="text-white-50">Last Ping: <span class="text-white">Pending implementation...</span></p>
-            <p class="text-white-50">Packet Loss: <span class="text-white">0%</span></p>
+            {% if asset.is_monitored %}
+                <div class="mb-3">
+                    <span class="d-block text-white-50 mb-1">Current Status:</span>
+                    {% if asset.current_status %}
+                        <span class="badge bg-success fs-6">ONLINE</span>
+                    {% else %}
+                        <span class="badge bg-danger fs-6">OFFLINE</span>
+                    {% endif %}
+                </div>
+
+                <p class="text-white-50">Last Latency:
+                    <span class="text-white fw-bold">
+                        {% if asset.latest_latency %}
+                            {{ asset.latest_latency|floatform:2 }} ms
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </span>
+                </p>
+            {% else %}
+                <p class="text-white-50">Monitoring is disabled for this asset.</p>
+            {% endif %}
         </div>
 
         <a href="{% url 'app_assets:asset_list' %}" class="btn btn-outline-light w-100">
