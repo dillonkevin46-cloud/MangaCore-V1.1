@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="glass-panel p-4 mb-4">
+            <h2 class="text-white mb-3">{{ asset.name }}</h2>
+            <div class="mb-3">
+                {% if asset.category %}
+                    <span class="badge bg-info text-dark">{{ asset.category.name }}</span>
+                {% else %}
+                    <span class="text-muted">Uncategorized</span>
+                {% endif %}
+
+                {% if asset.is_monitored %}
+                    <span class="badge bg-success ms-2">Monitored</span>
+                {% else %}
+                    <span class="badge bg-secondary ms-2">Not Monitored</span>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <strong class="text-white">IP Address:</strong> <span class="text-white-50">{{ asset.ip_address|default:"N/A" }}</span>
+            </div>
+            <div class="mb-3">
+                <strong class="text-white">Location:</strong> <span class="text-white-50">{{ asset.location.name|default:"Unknown" }}</span>
+            </div>
+            <div class="mb-3">
+                <strong class="text-white">Assigned To:</strong> <span class="text-white-50">{{ asset.assigned_to|default:"Unassigned" }}</span>
+            </div>
+            <div class="mb-3">
+                <strong class="text-white">Serial Number:</strong> <span class="text-white-50">{{ asset.serial_number|default:"N/A" }}</span>
+            </div>
+            <div class="mb-3">
+                <strong class="text-white">Model:</strong> <span class="text-white-50">{{ asset.make }} {{ asset.model_no }}</span>
+            </div>
+
+            {% if asset.notes %}
+            <div class="mb-3">
+                <strong class="text-white">Notes:</strong>
+                <p class="text-white-50">{{ asset.notes }}</p>
+            </div>
+            {% endif %}
+
+            <div class="mt-4 border-top border-secondary pt-3">
+                <a href="{% url 'app_assets:asset_update' asset.id %}" class="btn btn-warning w-100 mb-2">Edit Asset</a>
+                <a href="{% url 'app_assets:asset_list' %}" class="btn btn-outline-light w-100">Back to List</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="glass-panel p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="text-white m-0">Latency Monitor (Last 24 Hours)</h3>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-light active" onclick="updateChart('24h')">24h</button>
+                    <!-- JavaScript filtering logic would go here if implemented on frontend -->
+                </div>
+            </div>
+
+            <div style="position: relative; height:400px; width:100%">
+                <canvas id="pingChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('pingChart').getContext('2d');
+    const timestamps = JSON.parse('{{ ping_timestamps|safe }}');
+    const latencies = JSON.parse('{{ ping_latencies|safe }}');
+
+    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(118, 75, 162, 0.5)');
+    gradient.addColorStop(1, 'rgba(118, 75, 162, 0.0)');
+
+    const pingChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: timestamps,
+            datasets: [{
+                label: 'Latency (ms)',
+                data: latencies,
+                borderColor: '#764ba2',
+                backgroundColor: gradient,
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: 'rgba(255,255,255,0.7)' },
+                    grid: { color: 'rgba(255,255,255,0.1)' }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: 'rgba(255,255,255,0.7)' },
+                    grid: { color: 'rgba(255,255,255,0.1)' }
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            }
+        }
+    });
+</script>
+{% endblock %}

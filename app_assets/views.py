@@ -1,8 +1,11 @@
+import json
 from django.shortcuts import render
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from .models import Asset, Category, Location
+from django.utils import timezone
+from datetime import timedelta
+from .models import Asset, Category, Location, PingRecord
 from .forms import AssetForm, CategoryForm, LocationForm
 
 class AssetListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
@@ -26,6 +29,30 @@ class AssetListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
 
     def test_func(self):
         return self.request.user.is_staff
+
+class AssetDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = Asset
+    template_name = 'app_assets/asset_detail.html'
+    context_object_name = 'asset'
+
+    def test_func(self):
+        return self.request.user.is_staff
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Get Ping data for the last 24 hours
+        now = timezone.now()
+        last_24h = now - timedelta(hours=24)
+        records = PingRecord.objects.filter(asset=self.object, timestamp__gte=last_24h).order_by('timestamp')
+
+        timestamps = [record.timestamp.strftime('%Y-%m-%d %H:%M') for record in records]
+        latencies = [record.latency_ms if record.latency_ms is not None else 0 for record in records]
+
+        context['ping_timestamps'] = json.dumps(timestamps)
+        context['ping_latencies'] = json.dumps(latencies)
+
+        return context
 
 class AssetCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Asset

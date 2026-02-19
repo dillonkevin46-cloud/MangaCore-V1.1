@@ -1,10 +1,98 @@
+import csv
 from django.shortcuts import render, redirect, get_object_or_404
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from django.http import HttpResponse
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, View
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.urls import reverse_lazy
 from django.db.models import Q
-from .models import Ticket, Comment
+from .models import Ticket, Comment, TicketCategory
 from .forms import TicketForm, CommentForm
+
+class TicketCategoryListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = TicketCategory
+    template_name = 'app_tickets/category_list.html'
+    context_object_name = 'categories'
+
+    def test_func(self):
+        return self.request.user.is_staff
+
+class TicketCategoryCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = TicketCategory
+    fields = ['name', 'description']
+    template_name = 'app_tickets/category_form.html'
+    success_url = reverse_lazy('app_tickets:category_list')
+
+    def test_func(self):
+        return self.request.user.is_staff
+
+class TicketCategoryUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = TicketCategory
+    fields = ['name', 'description']
+    template_name = 'app_tickets/category_form.html'
+    success_url = reverse_lazy('app_tickets:category_list')
+
+    def test_func(self):
+        return self.request.user.is_staff
+
+class TicketCategoryDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = TicketCategory
+    template_name = 'app_tickets/category_confirm_delete.html'
+    success_url = reverse_lazy('app_tickets:category_list')
+
+    def test_func(self):
+        return self.request.user.is_staff
+
+class TicketExportCSVView(LoginRequiredMixin, UserPassesTestMixin, View):
+    def test_func(self):
+        return self.request.user.is_staff
+
+    def get(self, request, *args, **kwargs):
+        # Replicate logic from TicketListView or similar filtering
+        queryset = Ticket.objects.all().order_by('-created_at')
+
+        status = self.request.GET.get('status')
+        priority = self.request.GET.get('priority')
+        filter_type = self.request.GET.get('filter')
+        search_query = self.request.GET.get('q')
+
+        if not status:
+             queryset = queryset.exclude(status=Ticket.Status.CLOSED)
+        else:
+            queryset = queryset.filter(status=status)
+
+        if priority:
+            queryset = queryset.filter(priority=priority)
+
+        if filter_type == 'my_tickets':
+            queryset = queryset.filter(
+                Q(assigned_agent=self.request.user) | Q(creator=self.request.user)
+            )
+
+        if search_query:
+            queryset = queryset.filter(
+                Q(title__icontains=search_query) |
+                Q(description__icontains=search_query)
+            )
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="tickets.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(['Ticket ID', 'Title', 'Status', 'Priority', 'Category', 'Creator', 'Assigned Agent', 'Created Date'])
+
+        for ticket in queryset:
+            writer.writerow([
+                ticket.id,
+                ticket.title,
+                ticket.get_status_display(),
+                ticket.get_priority_display(),
+                ticket.category.name if ticket.category else 'N/A',
+                ticket.creator.username,
+                ticket.assigned_agent.username if ticket.assigned_agent else 'Unassigned',
+                ticket.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            ])
+
+        return response
 
 class TicketListView(LoginRequiredMixin, ListView):
     model = Ticket

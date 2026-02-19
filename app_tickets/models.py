@@ -3,6 +3,16 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from ckeditor_uploader.fields import RichTextUploadingField
 
+class TicketCategory(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name_plural = "Ticket Categories"
+
+    def __str__(self):
+        return self.name
+
 class Ticket(models.Model):
     class Status(models.TextChoices):
         OPEN = 'OPEN', _('Open')
@@ -17,6 +27,7 @@ class Ticket(models.Model):
         CRITICAL = 'CRITICAL', _('Critical')
 
     title = models.CharField(max_length=200)
+    category = models.ForeignKey(TicketCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='tickets')
     description = RichTextUploadingField()
     status = models.CharField(
         max_length=20,
