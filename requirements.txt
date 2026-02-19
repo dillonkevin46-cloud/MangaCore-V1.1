@@ -5,3 +5,4 @@ waitress>=3.0.0
 whitenoise>=6.6.0
 python-dotenv>=1.0.1
 django-ckeditor>=6.7.0
+ping3>=4.0.0
