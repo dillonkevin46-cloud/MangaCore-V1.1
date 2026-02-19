@@ -17,9 +17,14 @@ class TicketListView(LoginRequiredMixin, ListView):
         status = self.request.GET.get('status')
         priority = self.request.GET.get('priority')
         filter_type = self.request.GET.get('filter')
+        search_query = self.request.GET.get('q')
 
-        if status:
+        # Default: Exclude CLOSED tickets unless specifically requested via status filter
+        if not status:
+            queryset = queryset.exclude(status=Ticket.Status.CLOSED)
+        else:
             queryset = queryset.filter(status=status)
+
         if priority:
             queryset = queryset.filter(priority=priority)
 
@@ -28,12 +33,44 @@ class TicketListView(LoginRequiredMixin, ListView):
                 Q(assigned_agent=self.request.user) | Q(creator=self.request.user)
             )
 
+        if search_query:
+            queryset = queryset.filter(
+                Q(title__icontains=search_query) |
+                Q(description__icontains=search_query)
+            )
+
         return queryset.order_by('-created_at')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['status_choices'] = Ticket.Status.choices
         context['priority_choices'] = Ticket.Priority.choices
+        return context
+
+class TicketArchiveListView(LoginRequiredMixin, ListView):
+    model = Ticket
+    template_name = 'app_tickets/ticket_list.html'
+    context_object_name = 'tickets'
+    paginate_by = 10
+
+    def get_queryset(self):
+        # Only show CLOSED tickets
+        queryset = super().get_queryset().filter(status=Ticket.Status.CLOSED)
+
+        search_query = self.request.GET.get('q')
+        if search_query:
+            queryset = queryset.filter(
+                Q(title__icontains=search_query) |
+                Q(description__icontains=search_query)
+            )
+
+        return queryset.order_by('-created_at')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['status_choices'] = Ticket.Status.choices
+        context['priority_choices'] = Ticket.Priority.choices
+        context['is_archive'] = True
         return context
 
 class TicketCreateView(LoginRequiredMixin, CreateView):

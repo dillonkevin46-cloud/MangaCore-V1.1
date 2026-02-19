@@ -5,7 +5,7 @@
     <div class="col-md-8">
         <div class="glass-panel p-5">
             <h2 class="mb-4 text-white">{% if form.instance.pk %}Edit Asset{% else %}Add Asset{% endif %}</h2>
-            <form method="post">
+            <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
 
                 {% for field in form %}

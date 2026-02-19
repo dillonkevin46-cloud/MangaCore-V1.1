@@ -2,10 +2,19 @@
 
 {% block content %}
 <div class="row mb-4">
-    <div class="col-md-8">
-        <h1>Support Tickets</h1>
+    <div class="col-md-6">
+        <h1>{% if is_archive %}Archived Tickets{% else %}Support Tickets{% endif %}</h1>
     </div>
-    <div class="col-md-4 text-end">
+    <div class="col-md-6 text-end">
+        {% if not is_archive %}
+            <a href="{% url 'app_tickets:ticket_archive' %}" class="btn btn-outline-light me-2">
+                <i class="bi bi-archive"></i> Archived Tickets
+            </a>
+        {% else %}
+            <a href="{% url 'app_tickets:ticket_list' %}" class="btn btn-outline-light me-2">
+                <i class="bi bi-arrow-left"></i> Active Tickets
+            </a>
+        {% endif %}
         <a href="{% url 'app_tickets:ticket_create' %}" class="btn btn-primary">
             <i class="bi bi-plus-lg"></i> Create Ticket
         </a>
@@ -14,14 +23,21 @@
 
 <div class="glass-panel p-4 mb-4">
     <form method="get" class="row g-3">
+        <div class="col-md-4">
+            <input type="text" name="q" class="form-control bg-transparent text-white border-white" placeholder="Search tickets..." value="{{ request.GET.q|default:'' }}">
+        </div>
+        {% if not is_archive %}
         <div class="col-md-3">
             <select name="status" class="form-select bg-transparent text-white border-white">
                 <option value="" class="text-dark">All Statuses</option>
                 {% for status, label in status_choices %}
-                    <option value="{{ status }}" class="text-dark" {% if request.GET.status == status %}selected{% endif %}>{{ label }}</option>
+                    {% if status != 'CLOSED' %}
+                        <option value="{{ status }}" class="text-dark" {% if request.GET.status == status %}selected{% endif %}>{{ label }}</option>
+                    {% endif %}
                 {% endfor %}
             </select>
         </div>
+        {% endif %}
         <div class="col-md-3">
             <select name="priority" class="form-select bg-transparent text-white border-white">
                 <option value="" class="text-dark">All Priorities</option>
@@ -30,16 +46,8 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-3">
-             <div class="form-check pt-2">
-                <input class="form-check-input" type="checkbox" name="filter" value="my_tickets" id="myTickets" {% if request.GET.filter == 'my_tickets' %}checked{% endif %}>
-                <label class="form-check-label text-white" for="myTickets">
-                    My Tickets
-                </label>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <button type="submit" class="btn btn-primary w-100">Filter</button>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">Apply</button>
         </div>
     </form>
 </div>
@@ -64,7 +72,7 @@
                     <td>#{{ ticket.id }}</td>
                     <td>{{ ticket.title }}</td>
                     <td>
-                        <span class="badge {% if ticket.status == 'OPEN' %}bg-success{% elif ticket.status == 'IN_PROGRESS' %}bg-warning{% else %}bg-secondary{% endif %}">
+                        <span class="badge {% if ticket.status == 'OPEN' %}bg-success{% elif ticket.status == 'IN_PROGRESS' %}bg-warning{% elif ticket.status == 'CLOSED' %}bg-secondary{% else %}bg-info{% endif %}">
                             {{ ticket.get_status_display }}
                         </span>
                     </td>
@@ -92,11 +100,11 @@
     <nav aria-label="Page navigation" class="mt-4">
         <ul class="pagination justify-content-center">
             {% if page_obj.has_previous %}
-                <li class="page-item"><a class="page-link glass-panel text-white" href="?page={{ page_obj.previous_page_number }}">&laquo;</a></li>
+                <li class="page-item"><a class="page-link glass-panel text-white" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.priority %}&priority={{ request.GET.priority }}{% endif %}">&laquo;</a></li>
             {% endif %}
             <li class="page-item disabled"><span class="page-link glass-panel text-white">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
             {% if page_obj.has_next %}
-                <li class="page-item"><a class="page-link glass-panel text-white" href="?page={{ page_obj.next_page_number }}">&raquo;</a></li>
+                <li class="page-item"><a class="page-link glass-panel text-white" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.priority %}&priority={{ request.GET.priority }}{% endif %}">&raquo;</a></li>
             {% endif %}
         </ul>
     </nav>

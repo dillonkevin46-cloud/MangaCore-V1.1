@@ -15,6 +15,7 @@ class Article(models.Model):
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name='articles')
     title = models.CharField(max_length=200)
     content = RichTextUploadingField(help_text="Supports Rich Text / HTML")
+    attachment = models.FileField(upload_to='kb_attachments/', null=True, blank=True)
     is_public = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -43,6 +43,7 @@
                             <th>Make</th>
                             <th>Model</th>
                             <th>Serial</th>
+                            <th>IP Address</th>
                             <th>Location</th>
                             <th>Assigned To</th>
                             <th>Actions</th>
@@ -54,6 +55,7 @@
                             <td>{{ asset.make }}</td>
                             <td>{{ asset.model_no }}</td>
                             <td>{{ asset.serial_number }}</td>
+                            <td>{{ asset.ip_address|default:"-" }}</td>
                             <td>
                                 {% if asset.location %}
                                     <span class="badge bg-secondary">{{ asset.location.name }}</span>
