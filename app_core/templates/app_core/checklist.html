@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="glass-panel p-5">
+            <h2 class="text-white mb-4">Daily Checklist</h2>
+
+            <form action="{% url 'app_core:checklist_add' %}" method="post" class="mb-4">
+                {% csrf_token %}
+                <div class="input-group">
+                    <input type="text" name="task" class="form-control bg-transparent text-white border-white" placeholder="Add a new task..." required>
+                    <button class="btn btn-primary" type="submit">Add</button>
+                </div>
+            </form>
+
+            <ul class="list-group list-group-flush bg-transparent">
+                {% for task in tasks %}
+                <li class="list-group-item bg-transparent text-white d-flex align-items-center justify-content-between border-bottom border-white-50">
+                    <div class="d-flex align-items-center">
+                        <form action="{% url 'app_core:checklist_toggle' task.id %}" method="post" class="me-3">
+                            {% csrf_token %}
+                            <input type="checkbox" class="form-check-input" onchange="this.form.submit()" {% if task.is_completed %}checked{% endif %}>
+                        </form>
+                        <span {% if task.is_completed %}class="text-decoration-line-through text-white-50"{% endif %}>
+                            {{ task.task }}
+                        </span>
+                    </div>
+                    <small class="text-white-50">{{ task.created_at|date:"M d" }}</small>
+                </li>
+                {% empty %}
+                <li class="list-group-item bg-transparent text-white text-center">
+                    No tasks yet. Enjoy your day!
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

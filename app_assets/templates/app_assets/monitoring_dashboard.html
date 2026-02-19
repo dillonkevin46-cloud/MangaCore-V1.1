@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12">
+        <div class="glass-panel p-4">
+            <h2 class="text-white mb-4">Monitoring Dashboard</h2>
+
+            <div class="row">
+                {% for asset in monitored_assets %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="glass-panel p-4 h-100 position-relative">
+                        <div class="d-flex justify-content-between mb-3">
+                            <h5 class="text-white">{{ asset.name }}</h5>
+                            <!-- Placeholder status logic: Check latest ping record? -->
+                             <span class="badge bg-info text-dark">Monitored</span>
+                        </div>
+                        <p class="text-white-50 mb-1">IP: {{ asset.ip_address }}</p>
+                        <p class="text-white-50 mb-3">Location: {{ asset.location.name }}</p>
+
+                        <a href="{% url 'app_assets:asset_detail' asset.pk %}" class="btn btn-sm btn-outline-light w-100">View Details</a>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12 text-center">
+                    <p class="text-white-50">No monitored assets found.</p>
+                </div>
+                {% endfor %}
+            </div>
+
+             <div class="mt-3">
+                <a href="{% url 'app_assets:asset_list' %}" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-arrow-left"></i> Back to Assets
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

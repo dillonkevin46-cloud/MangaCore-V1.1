@@ -4,12 +4,14 @@
 <div class="row justify-content-center">
     <div class="col-md-6">
         <div class="glass-panel p-5 text-center">
-            <h2 class="text-white mb-4">Are you sure?</h2>
-            <p class="text-white mb-4">Do you really want to delete asset <strong>"{{ asset.name }}"</strong>? This process cannot be undone.</p>
+            <h2 class="text-white mb-4">Confirm Deletion</h2>
+            <p class="text-white">Are you sure you want to delete asset <strong>"{{ asset.name }}"</strong>?</p>
             <form method="post">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-danger btn-lg me-2">Delete</button>
-                <a href="{% url 'app_assets:asset_list' %}" class="btn btn-outline-light btn-lg">Cancel</a>
+                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mt-4">
+                    <a href="{% url 'app_assets:asset_detail' asset.id %}" class="btn btn-outline-light">Cancel</a>
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </div>
             </form>
         </div>
     </div>

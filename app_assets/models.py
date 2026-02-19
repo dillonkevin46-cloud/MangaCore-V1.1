@@ -29,6 +29,7 @@ class Asset(models.Model):
     serial_number = models.CharField(max_length=100, blank=True)
     model_no = models.CharField(max_length=100, blank=True)
     make = models.CharField(max_length=100, blank=True)
+    specifications = models.JSONField(default=dict, blank=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
