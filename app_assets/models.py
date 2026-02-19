@@ -37,6 +37,16 @@ class Asset(models.Model):
     def __str__(self):
         return f"{self.name} ({self.category})"
 
+    @property
+    def current_status(self):
+        latest_ping = self.ping_records.order_by('-timestamp').first()
+        return latest_ping.is_online if latest_ping else False
+
+    @property
+    def latest_latency(self):
+        latest_ping = self.ping_records.order_by('-timestamp').first()
+        return latest_ping.latency_ms if latest_ping else None
+
 class PingRecord(models.Model):
     asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='ping_records')
     timestamp = models.DateTimeField(auto_now_add=True)

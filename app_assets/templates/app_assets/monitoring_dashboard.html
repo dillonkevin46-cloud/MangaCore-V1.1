@@ -12,11 +12,22 @@
                     <div class="glass-panel p-4 h-100 position-relative">
                         <div class="d-flex justify-content-between mb-3">
                             <h5 class="text-white">{{ asset.name }}</h5>
-                            <!-- Placeholder status logic: Check latest ping record? -->
-                             <span class="badge bg-info text-dark">Monitored</span>
+                            {% if asset.current_status %}
+                                <span class="badge bg-success">Online</span>
+                            {% else %}
+                                <span class="badge bg-danger">Offline</span>
+                            {% endif %}
                         </div>
                         <p class="text-white-50 mb-1">IP: {{ asset.ip_address }}</p>
                         <p class="text-white-50 mb-3">Location: {{ asset.location.name }}</p>
+
+                        <div class="mb-3">
+                            {% if asset.latest_latency %}
+                                <small class="text-white">Latency: {{ asset.latest_latency|floatform:2 }}ms</small>
+                            {% else %}
+                                <small class="text-white-50">No Data</small>
+                            {% endif %}
+                        </div>
 
                         <a href="{% url 'app_assets:asset_detail' asset.pk %}" class="btn btn-sm btn-outline-light w-100">View Details</a>
                     </div>
