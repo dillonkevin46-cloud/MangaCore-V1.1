@@ -28,6 +28,11 @@ class FormQuestion(models.Model):
     class Meta:
         ordering = ['order', 'id']
 
+    def get_choices_list(self):
+        if not self.choices:
+            return []
+        return [c.strip() for c in self.choices.split(',') if c.strip()]
+
     def __str__(self):
         return self.question_text
 

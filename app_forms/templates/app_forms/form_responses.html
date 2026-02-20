@@ -33,7 +33,7 @@
                                         <div>{{ answer.answer_text|truncatechars:30 }}</div>
                                         {% if answer.note %}
                                             <small class="text-white-50 d-block mt-1">
-                                                <i class="bi bi-sticky"></i> {{ answer.note|truncatechars:20 }}
+                                                <i class="bi bi-sticky"></i> Note: {{ answer.note|truncatechars:20 }}
                                             </small>
                                         {% endif %}
                                     {% endif %}

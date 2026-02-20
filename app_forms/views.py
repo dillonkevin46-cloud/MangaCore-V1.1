@@ -100,7 +100,7 @@ class FormServeView(View):
                     submission=submission,
                     question=question,
                     answer_text=answer_text,
-                    note=note_text
+                    note=request.POST.get(f'note_{question.id}')
                 ))
 
         FormAnswer.objects.bulk_create(answers_to_create)
