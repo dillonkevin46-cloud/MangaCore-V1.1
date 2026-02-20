@@ -28,6 +28,11 @@ class FormQuestion(models.Model):
     class Meta:
         ordering = ['order', 'id']
 
+    def get_choices_list(self):
+        if not self.choices:
+            return []
+        return [c.strip() for c in self.choices.split(',') if c.strip()]
+
     def __str__(self):
         return self.question_text
 
@@ -43,6 +48,7 @@ class FormAnswer(models.Model):
     submission = models.ForeignKey(FormSubmission, on_delete=models.CASCADE, related_name='answers')
     question = models.ForeignKey(FormQuestion, on_delete=models.CASCADE)
     answer_text = models.TextField()
+    note = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.question.question_text}: {self.answer_text}"
