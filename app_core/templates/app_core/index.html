@@ -2,77 +2,51 @@
 
 {% block content %}
 {% if user.is_authenticated %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h1 class="display-5 text-white fw-bold">Dashboard</h1>
-        <p class="text-white-50">Welcome back, {{ user.username }}!</p>
-    </div>
-</div>
-
-<!-- Stats Cards Row -->
-<div class="row mb-5">
-    <!-- Ticket Stats Card -->
-    <div class="col-md-6 col-lg-3 mb-4">
-        <div class="glass-panel p-4 h-100 position-relative overflow-hidden">
-            <h5 class="text-white-50 mb-3">Open Tickets</h5>
-            <h2 class="display-4 fw-bold text-white mb-0" id="stat-open-tickets">0</h2>
-            <i class="bi bi-ticket-perforated position-absolute end-0 bottom-0 mb-n2 me-n2 text-white-50" style="font-size: 6rem; opacity: 0.1;"></i>
-        </div>
-    </div>
-    <!-- Online Assets Card -->
-    <div class="col-md-6 col-lg-3 mb-4">
-        <div class="glass-panel p-4 h-100 position-relative overflow-hidden">
-            <h5 class="text-white-50 mb-3">Online Assets</h5>
-            <h2 class="display-4 fw-bold text-success mb-0" id="stat-online-assets">0</h2>
-             <i class="bi bi-hdd-network position-absolute end-0 bottom-0 mb-n2 me-n2 text-white-50" style="font-size: 6rem; opacity: 0.1;"></i>
-        </div>
-    </div>
-    <!-- Offline Assets Card -->
-     <div class="col-md-6 col-lg-3 mb-4">
-        <div class="glass-panel p-4 h-100 position-relative overflow-hidden">
-            <h5 class="text-white-50 mb-3">Offline Assets</h5>
-            <h2 class="display-4 fw-bold text-danger mb-0" id="stat-offline-assets">0</h2>
-             <i class="bi bi-exclamation-triangle position-absolute end-0 bottom-0 mb-n2 me-n2 text-white-50" style="font-size: 6rem; opacity: 0.1;"></i>
-        </div>
-    </div>
-     <!-- Checklist Quick Link -->
-     <div class="col-md-6 col-lg-3 mb-4">
-        <a href="{% url 'app_core:checklist' %}" class="text-decoration-none">
-            <div class="glass-panel p-4 h-100 position-relative overflow-hidden hover-effect">
-                <h5 class="text-white-50 mb-3">Daily Checklist</h5>
-                <h2 class="display-6 fw-bold text-white mb-0">View Tasks <i class="bi bi-arrow-right-short"></i></h2>
-                 <i class="bi bi-check2-square position-absolute end-0 bottom-0 mb-n2 me-n2 text-white-50" style="font-size: 6rem; opacity: 0.1;"></i>
+<div class="container-fluid" style="max-height: calc(100vh - 80px); overflow: hidden;">
+    <!-- Top Row: Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="glass-panel p-3 text-center">
+                <h5 class="text-white-50">Total Tickets</h5>
+                <h2 class="display-4 fw-bold text-white mb-0">{{ total_tickets }}</h2>
             </div>
-        </a>
-    </div>
-</div>
-
-<!-- Charts Row -->
-<div class="row">
-    <div class="col-md-6 mb-4">
-        <div class="glass-panel p-4 h-100">
-            <h4 class="text-white mb-4">Ticket Status Distribution</h4>
-            <div style="max-height: 300px; position: relative;">
-                <canvas id="ticketChart"></canvas>
+        </div>
+        <div class="col-md-3">
+            <div class="glass-panel p-3 text-center">
+                <h5 class="text-white-50">Open Tickets</h5>
+                <h2 class="display-4 fw-bold text-warning mb-0">{{ open_tickets }}</h2>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="glass-panel p-3 text-center">
+                <h5 class="text-white-50">Total Assets</h5>
+                <h2 class="display-4 fw-bold text-white mb-0">{{ total_assets }}</h2>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="glass-panel p-3 text-center">
+                <h5 class="text-white-50">Online Assets</h5>
+                <h2 class="display-4 fw-bold text-success mb-0">{{ online_assets }}</h2>
             </div>
         </div>
     </div>
-    <div class="col-md-6 mb-4">
-        <div class="glass-panel p-4 h-100">
-            <h4 class="text-white mb-4">Asset Monitoring Status</h4>
-            <div style="max-height: 300px; position: relative;">
-                <canvas id="assetChart"></canvas>
+
+    <!-- Middle Row: Charts -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="glass-panel p-3 h-100">
+                <h5 class="text-white mb-3 text-center">Ticket Status</h5>
+                <div style="position: relative; height: 35vh; width: 100%; display: flex; justify-content: center;">
+                    <canvas id="ticketChart"></canvas>
+                </div>
             </div>
         </div>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-12 mb-4">
-        <div class="glass-panel p-4">
-            <h4 class="text-white mb-4">Monitoring by Category</h4>
-            <div style="max-height: 300px; position: relative;">
-                <canvas id="categoryChart"></canvas>
+        <div class="col-md-6">
+            <div class="glass-panel p-3 h-100">
+                <h5 class="text-white mb-3 text-center">Online vs Offline</h5>
+                <div style="position: relative; height: 35vh; width: 100%; display: flex; justify-content: center;">
+                    <canvas id="assetChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -99,16 +73,10 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Parse JSON data safely
         const ticketStats = JSON.parse('{{ ticket_stats_json|escapejs }}');
         const assetStats = JSON.parse('{{ asset_stats_json|escapejs }}');
 
-        // Update Stats Cards
-        document.getElementById('stat-open-tickets').textContent = ticketStats.OPEN || 0;
-        document.getElementById('stat-online-assets').textContent = assetStats.online || 0;
-        document.getElementById('stat-offline-assets').textContent = assetStats.offline || 0;
-
-        // Ticket Chart
+        // Ticket Chart (Doughnut)
         const ctxTicket = document.getElementById('ticketChart').getContext('2d');
         new Chart(ctxTicket, {
             type: 'doughnut',
@@ -143,73 +111,20 @@
             }
         });
 
-        // Category Stacked Bar Chart
-        const catNames = JSON.parse('{{ category_names_json|escapejs }}');
-        const catOnline = JSON.parse('{{ cat_online_json|escapejs }}');
-        const catOffline = JSON.parse('{{ cat_offline_json|escapejs }}');
-
-        const ctxCategory = document.getElementById('categoryChart').getContext('2d');
-        new Chart(ctxCategory, {
-            type: 'bar',
-            data: {
-                labels: catNames,
-                datasets: [
-                    {
-                        label: 'Online',
-                        data: catOnline,
-                        backgroundColor: 'rgba(75, 192, 192, 0.7)',
-                        borderColor: 'rgba(255, 255, 255, 0.1)',
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'Offline',
-                        data: catOffline,
-                        backgroundColor: 'rgba(255, 99, 132, 0.7)',
-                        borderColor: 'rgba(255, 255, 255, 0.1)',
-                        borderWidth: 1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        stacked: true,
-                        ticks: { color: '#fff' },
-                        grid: { color: 'rgba(255, 255, 255, 0.1)' }
-                    },
-                    y: {
-                        stacked: true,
-                        ticks: { color: '#fff' },
-                        grid: { color: 'rgba(255, 255, 255, 0.1)' }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { color: '#fff' }
-                    }
-                }
-            }
-        });
-
-        // Asset Chart
+        // Asset Chart (Pie)
         const ctxAsset = document.getElementById('assetChart').getContext('2d');
         new Chart(ctxAsset, {
             type: 'pie',
             data: {
-                labels: ['Online', 'Offline', 'Unknown'],
+                labels: ['Online', 'Offline'],
                 datasets: [{
                     data: [
                         assetStats.online,
-                        assetStats.offline,
-                        assetStats.unknown
+                        assetStats.offline
                     ],
                     backgroundColor: [
                         'rgba(75, 192, 192, 0.7)',
-                        'rgba(255, 99, 132, 0.7)',
-                        'rgba(201, 203, 207, 0.7)'
+                        'rgba(255, 99, 132, 0.7)'
                     ],
                     borderColor: 'rgba(255, 255, 255, 0.1)',
                     borderWidth: 1

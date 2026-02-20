@@ -14,89 +14,59 @@ from app_assets.models import Asset, Category
 
 User = get_user_model()
 
-@login_required
-def dashboard(request):
-    """
-    Main dashboard view.
-    """
-    # Ticket Stats
-    ticket_stats = {
-        'OPEN': Ticket.objects.filter(status=Ticket.Status.OPEN).count(),
-        'IN_PROGRESS': Ticket.objects.filter(status=Ticket.Status.IN_PROGRESS).count(),
-        'RESOLVED': Ticket.objects.filter(status=Ticket.Status.RESOLVED).count(),
-        'CLOSED': Ticket.objects.filter(status=Ticket.Status.CLOSED).count(),
-    }
+class IndexView(TemplateView):
+    template_name = 'app_core/index.html'
 
-    # Asset Stats
-    monitored_assets_count = Asset.objects.filter(is_monitored=True).count()
-    # Simple logic: assume assets with IP and monitored=True are "Online" if we had a field,
-    # but for now we might count based on latest PingRecord.
-    # To simplify for the dashboard pie chart:
-    # Online = Monitored assets where last PingRecord.is_online = True
-    # Offline = Monitored assets where last PingRecord.is_online = False
-    # Unknown = Monitored assets with no records
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.request.user.is_authenticated:
+            # 1. Total Users
+            total_users = User.objects.count()
 
-    online_count = 0
-    offline_count = 0
-    unknown_count = 0
+            # 2. Total Tickets
+            total_tickets = Ticket.objects.count()
 
-    monitored_assets = Asset.objects.filter(is_monitored=True)
-    for asset in monitored_assets:
-        last_record = asset.ping_records.order_by('-timestamp').first()
-        if last_record:
-            if last_record.is_online:
-                online_count += 1
-            else:
-                offline_count += 1
-        else:
-            unknown_count += 1
+            # 3. Open Tickets (OPEN or IN_PROGRESS)
+            open_tickets = Ticket.objects.filter(
+                status__in=[Ticket.Status.OPEN, Ticket.Status.IN_PROGRESS]
+            ).count()
 
-    asset_stats = {
-        'monitored': monitored_assets_count,
-        'online': online_count,
-        'offline': offline_count,
-        'unknown': unknown_count
-    }
+            # 4. Total Assets
+            total_assets = Asset.objects.count()
 
-    # Category Based Stats for Stacked Bar Chart
-    categories = Category.objects.all()
-    category_names = []
-    cat_online_counts = []
-    cat_offline_counts = []
+            # 5. Online Assets (Pure Python logic as requested)
+            monitored_assets = Asset.objects.filter(is_monitored=True)
+            online_assets = sum(1 for a in monitored_assets if a.current_status)
 
-    for cat in categories:
-        # Get monitored assets in this category
-        cat_assets = Asset.objects.filter(category=cat, is_monitored=True)
-        c_online = 0
-        c_offline = 0
+            context.update({
+                'total_users': total_users,
+                'total_tickets': total_tickets,
+                'open_tickets': open_tickets,
+                'total_assets': total_assets,
+                'online_assets': online_assets,
+            })
 
-        for asset in cat_assets:
-            if asset.current_status:
-                c_online += 1
-            else:
-                c_offline += 1
+            # Chart Data
+            ticket_stats = {
+                'OPEN': Ticket.objects.filter(status=Ticket.Status.OPEN).count(),
+                'IN_PROGRESS': Ticket.objects.filter(status=Ticket.Status.IN_PROGRESS).count(),
+                'RESOLVED': Ticket.objects.filter(status=Ticket.Status.RESOLVED).count(),
+                'CLOSED': Ticket.objects.filter(status=Ticket.Status.CLOSED).count(),
+            }
 
-        if c_online > 0 or c_offline > 0:
-            category_names.append(cat.name)
-            cat_online_counts.append(c_online)
-            cat_offline_counts.append(c_offline)
+            asset_stats = {
+                'online': online_assets,
+                'offline': monitored_assets.count() - online_assets
+            }
 
-    context = {
-        'ticket_stats_json': json.dumps(ticket_stats),
-        'asset_stats_json': json.dumps(asset_stats),
-        'category_names_json': json.dumps(category_names),
-        'cat_online_json': json.dumps(cat_online_counts),
-        'cat_offline_json': json.dumps(cat_offline_counts),
-    }
-    return render(request, 'app_core/index.html', context)
+            context['ticket_stats_json'] = json.dumps(ticket_stats)
+            context['asset_stats_json'] = json.dumps(asset_stats)
 
-def index(request):
-    """
-    Landing page or redirect to dashboard.
-    """
-    if request.user.is_authenticated:
-        return dashboard(request)
-    return render(request, 'app_core/index.html')
+        return context
+
+# Use as_view() directly for the URLs to pick up
+index = IndexView.as_view()
+dashboard = login_required(IndexView.as_view())
 
 class SuperuserRequiredMixin(UserPassesTestMixin):
     def test_func(self):
