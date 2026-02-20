@@ -10,7 +10,7 @@ from django.urls import reverse
 from .forms import UserCreateForm
 from .models import UserChecklistTask, AppNotification
 from app_tickets.models import Ticket
-from app_assets.models import Asset
+from app_assets.models import Asset, Category
 
 User = get_user_model()
 
@@ -58,9 +58,35 @@ def dashboard(request):
         'unknown': unknown_count
     }
 
+    # Category Based Stats for Stacked Bar Chart
+    categories = Category.objects.all()
+    category_names = []
+    cat_online_counts = []
+    cat_offline_counts = []
+
+    for cat in categories:
+        # Get monitored assets in this category
+        cat_assets = Asset.objects.filter(category=cat, is_monitored=True)
+        c_online = 0
+        c_offline = 0
+
+        for asset in cat_assets:
+            if asset.current_status:
+                c_online += 1
+            else:
+                c_offline += 1
+
+        if c_online > 0 or c_offline > 0:
+            category_names.append(cat.name)
+            cat_online_counts.append(c_online)
+            cat_offline_counts.append(c_offline)
+
     context = {
         'ticket_stats_json': json.dumps(ticket_stats),
         'asset_stats_json': json.dumps(asset_stats),
+        'category_names_json': json.dumps(category_names),
+        'cat_online_json': json.dumps(cat_online_counts),
+        'cat_offline_json': json.dumps(cat_offline_counts),
     }
     return render(request, 'app_core/index.html', context)
 

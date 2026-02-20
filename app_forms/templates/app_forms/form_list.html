@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="glass-panel p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="text-white mb-0">Form Builder</h2>
+                {% if user.is_staff %}
+                <a href="{% url 'app_forms:form_create' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-lg"></i> Create New Form
+                </a>
+                {% endif %}
+            </div>
+
+            <ul class="list-group list-group-flush bg-transparent">
+                {% for form in forms %}
+                <li class="list-group-item bg-transparent text-white d-flex justify-content-between align-items-center border-bottom border-white-50 p-3">
+                    <div>
+                        <h5 class="mb-1 text-white">{{ form.title }}</h5>
+                        <p class="mb-1 text-white-50 small">{{ form.description|truncatewords:10 }}</p>
+                        <small class="text-white-50">Created: {{ form.created_at|date:"M d, Y" }}</small>
+                    </div>
+                    <div>
+                        <a href="{% url 'app_forms:form_responses' form.pk %}" class="btn btn-sm btn-outline-info me-2">Responses</a>
+                        <a href="{% url 'app_forms:form_builder' form.pk %}" class="btn btn-sm btn-outline-light">Builder</a>
+                        <a href="{% url 'app_forms:form_serve' form.pk %}" class="btn btn-sm btn-outline-success ms-2" target="_blank">View</a>
+                    </div>
+                </li>
+                {% empty %}
+                <li class="list-group-item bg-transparent text-white text-center">
+                    No forms created yet.
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

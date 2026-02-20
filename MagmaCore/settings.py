@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "app_tickets.apps.AppTicketsConfig",
     "app_assets.apps.AppAssetsConfig",
     "app_kb.apps.AppKbConfig",
+    "app_forms.apps.AppFormsConfig",
 ]
 
 MIDDLEWARE = [

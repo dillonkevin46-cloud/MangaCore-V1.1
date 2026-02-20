@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="glass-panel p-4">
+            <h2 class="text-white mb-4">Responses for: {{ form.title }}</h2>
+            <div class="d-flex justify-content-between mb-4">
+                <p class="text-white-50">{{ form.submissions.count }} Total Submissions</p>
+                <a href="{% url 'app_forms:form_list' %}" class="btn btn-outline-light">Back to Forms</a>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover text-white">
+                    <thead>
+                        <tr>
+                            <th scope="col">Date</th>
+                            <th scope="col">Respondent</th>
+                            {% for question in form.questions.all %}
+                            <th scope="col">{{ question.question_text|truncatechars:20 }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for submission in form.submissions.all %}
+                        <tr>
+                            <td>{{ submission.submitted_at|date:"M d, Y H:i" }}</td>
+                            <td>{{ submission.submitted_by|default:"Anonymous" }}</td>
+                            {% for question in form.questions.all %}
+                            <td>
+                                {% for answer in submission.answers.all %}
+                                    {% if answer.question.id == question.id %}
+                                        {{ answer.answer_text|truncatechars:30 }}
+                                    {% endif %}
+                                {% endfor %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="{{ form.questions.count|add:2 }}" class="text-center">No responses yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
