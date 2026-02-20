@@ -83,6 +83,8 @@ class FormServeView(View):
         for question in custom_form.questions.all():
             answer_key = f"question_{question.id}"
             answer_text = request.POST.get(answer_key)
+            note_key = f"note_{question.id}"
+            note_text = request.POST.get(note_key)
 
             # Simple required check
             if question.is_required and not answer_text:
@@ -97,7 +99,8 @@ class FormServeView(View):
                 answers_to_create.append(FormAnswer(
                     submission=submission,
                     question=question,
-                    answer_text=answer_text
+                    answer_text=answer_text,
+                    note=note_text
                 ))
 
         FormAnswer.objects.bulk_create(answers_to_create)

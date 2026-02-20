@@ -43,6 +43,7 @@ class FormAnswer(models.Model):
     submission = models.ForeignKey(FormSubmission, on_delete=models.CASCADE, related_name='answers')
     question = models.ForeignKey(FormQuestion, on_delete=models.CASCADE)
     answer_text = models.TextField()
+    note = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.question.question_text}: {self.answer_text}"

@@ -30,7 +30,12 @@
                             <td>
                                 {% for answer in submission.answers.all %}
                                     {% if answer.question.id == question.id %}
-                                        {{ answer.answer_text|truncatechars:30 }}
+                                        <div>{{ answer.answer_text|truncatechars:30 }}</div>
+                                        {% if answer.note %}
+                                            <small class="text-white-50 d-block mt-1">
+                                                <i class="bi bi-sticky"></i> {{ answer.note|truncatechars:20 }}
+                                            </small>
+                                        {% endif %}
                                     {% endif %}
                                 {% endfor %}
                             </td>
