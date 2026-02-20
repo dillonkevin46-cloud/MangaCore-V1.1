@@ -52,13 +52,17 @@
     <div class="col-md-6 mb-4">
         <div class="glass-panel p-4 h-100">
             <h4 class="text-white mb-4">Ticket Status Distribution</h4>
-            <canvas id="ticketChart"></canvas>
+            <div style="max-height: 300px; position: relative;">
+                <canvas id="ticketChart"></canvas>
+            </div>
         </div>
     </div>
     <div class="col-md-6 mb-4">
         <div class="glass-panel p-4 h-100">
             <h4 class="text-white mb-4">Asset Monitoring Status</h4>
-            <canvas id="assetChart"></canvas>
+            <div style="max-height: 300px; position: relative;">
+                <canvas id="assetChart"></canvas>
+            </div>
         </div>
     </div>
 </div>
@@ -67,7 +71,9 @@
     <div class="col-12 mb-4">
         <div class="glass-panel p-4">
             <h4 class="text-white mb-4">Monitoring by Category</h4>
-            <canvas id="categoryChart" height="100"></canvas>
+            <div style="max-height: 300px; position: relative;">
+                <canvas id="categoryChart"></canvas>
+            </div>
         </div>
     </div>
 </div>
@@ -127,6 +133,7 @@
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         position: 'bottom',
@@ -165,6 +172,7 @@
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 scales: {
                     x: {
                         stacked: true,
@@ -209,6 +217,7 @@
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         position: 'bottom',

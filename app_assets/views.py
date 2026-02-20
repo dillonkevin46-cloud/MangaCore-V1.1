@@ -1,8 +1,11 @@
+import json
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.urls import reverse_lazy, reverse
 from django.contrib import messages
-from .models import Asset, Category, Location
+from django.utils import timezone
+from datetime import timedelta
+from .models import Asset, Category, Location, PingRecord
 from .forms import AssetForm, CategoryForm, LocationForm
 
 class StaffRequiredMixin(UserPassesTestMixin):
@@ -19,6 +22,41 @@ class AssetDetailView(LoginRequiredMixin, DetailView):
     model = Asset
     template_name = 'app_assets/asset_detail.html'
     context_object_name = 'asset'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        range_param = self.request.GET.get('range', '1h')
+        now = timezone.now()
+
+        if range_param == '1m':
+            start_time = now - timedelta(minutes=1)
+        elif range_param == '5m':
+            start_time = now - timedelta(minutes=5)
+        elif range_param == '30m':
+            start_time = now - timedelta(minutes=30)
+        elif range_param == '1h':
+            start_time = now - timedelta(hours=1)
+        elif range_param == '1d':
+            start_time = now - timedelta(days=1)
+        elif range_param == '1w':
+            start_time = now - timedelta(weeks=1)
+        elif range_param == '1mo':
+            start_time = now - timedelta(days=30)
+        else:
+            start_time = now - timedelta(hours=1)
+
+        records = self.object.ping_records.filter(timestamp__gte=start_time).order_by('timestamp')
+
+        timestamps = [record.timestamp.strftime('%H:%M:%S' if range_param in ['1m', '5m', '30m', '1h'] else '%Y-%m-%d %H:%M') for record in records]
+        latencies = [record.latency_ms if record.latency_ms is not None else 0 for record in records]
+        packet_losses = [record.packet_loss for record in records]
+
+        context['timestamps_json'] = json.dumps(timestamps)
+        context['latencies_json'] = json.dumps(latencies)
+        context['packet_losses_json'] = json.dumps(packet_losses)
+        context['selected_range'] = range_param
+
+        return context
 
 class AssetCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
     model = Asset

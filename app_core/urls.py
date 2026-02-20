@@ -15,4 +15,7 @@ urlpatterns = [
     path('checklist/', views.ChecklistView.as_view(), name='checklist'),
     path('checklist/add/', views.AddChecklistTaskView.as_view(), name='checklist_add'),
     path('checklist/toggle/<int:pk>/', views.ToggleChecklistTaskView.as_view(), name='checklist_toggle'),
+
+    path('contacts/', views.ContactListView.as_view(), name='contact_list'),
+    path('contacts/add/', views.ContactCreateView.as_view(), name='contact_add'),
 ]

@@ -45,6 +45,26 @@
                 <p class="text-white-50 mb-1">Alert Email: <span class="text-white">{{ asset.alert_email|default:"-" }}</span></p>
             </div>
 
+            <!-- Performance Graph Section -->
+            {% if asset.is_monitored %}
+            <hr class="border-light opacity-25">
+            <h4 class="text-white mb-3">Performance Metrics</h4>
+
+            <div class="btn-group mb-4" role="group">
+                <a href="?range=1m" class="btn btn-outline-light {% if selected_range == '1m' %}active{% endif %}">1m</a>
+                <a href="?range=5m" class="btn btn-outline-light {% if selected_range == '5m' %}active{% endif %}">5m</a>
+                <a href="?range=30m" class="btn btn-outline-light {% if selected_range == '30m' %}active{% endif %}">30m</a>
+                <a href="?range=1h" class="btn btn-outline-light {% if selected_range == '1h' %}active{% endif %}">1h</a>
+                <a href="?range=1d" class="btn btn-outline-light {% if selected_range == '1d' %}active{% endif %}">1d</a>
+                <a href="?range=1w" class="btn btn-outline-light {% if selected_range == '1w' %}active{% endif %}">1w</a>
+                <a href="?range=1mo" class="btn btn-outline-light {% if selected_range == '1mo' %}active{% endif %}">1mo</a>
+            </div>
+
+            <div style="height: 300px; position: relative;" class="mb-4">
+                <canvas id="performanceChart"></canvas>
+            </div>
+            {% endif %}
+
             <hr class="border-light opacity-25">
 
             <div class="row mb-4">
@@ -118,4 +138,86 @@
         </a>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if asset.is_monitored %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const timestamps = JSON.parse('{{ timestamps_json|escapejs }}');
+        const latencies = JSON.parse('{{ latencies_json|escapejs }}');
+        const packetLosses = JSON.parse('{{ packet_losses_json|escapejs }}');
+
+        const ctx = document.getElementById('performanceChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timestamps,
+                datasets: [
+                    {
+                        label: 'Latency (ms)',
+                        data: latencies,
+                        borderColor: 'rgba(54, 162, 235, 1)', // Blue
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Packet Loss (%)',
+                        data: packetLosses,
+                        borderColor: 'rgba(255, 99, 132, 1)', // Red/Orange
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: '#fff' }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#fff' },
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { display: true, text: 'Latency (ms)', color: '#fff' },
+                        ticks: { color: '#fff' },
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: { display: true, text: 'Packet Loss (%)', color: '#fff' },
+                        ticks: { color: '#fff' },
+                        grid: { drawOnChartArea: false }, // only want the grid lines for one axis to show up
+                        min: 0,
+                        max: 100
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endif %}
 {% endblock %}
