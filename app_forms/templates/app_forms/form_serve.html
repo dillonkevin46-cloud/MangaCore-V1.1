@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="glass-panel p-5">
+            <h1 class="text-white mb-3">{{ form.title }}</h1>
+            <p class="text-white-50 mb-4">{{ form.description }}</p>
+
+            {% if submitted %}
+                <div class="alert alert-success d-flex align-items-center bg-success text-white border-0" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <div>
+                        Thank you! Your response has been recorded.
+                    </div>
+                </div>
+                <div class="text-center mt-4">
+                     <a href="{% url 'app_forms:form_serve' form.pk %}" class="btn btn-outline-light">Submit Another Response</a>
+                </div>
+            {% else %}
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-4">
+                        <label class="form-label text-white">Your Email (Optional)</label>
+                        <input type="email" name="email_contact" class="form-control bg-transparent text-white" placeholder="name@example.com">
+                    </div>
+
+                    {% for question in form.questions.all %}
+                    <div class="card glass-panel mb-4 p-3 border-light">
+                        <div class="card-body">
+                            <label class="form-label text-white h5 mb-3 d-block">
+                                {{ question.question_text }}
+                                {% if question.is_required %}<span class="text-danger">*</span>{% endif %}
+                            </label>
+
+                            {% if question.question_type == 'TEXT' %}
+                                <input type="text" name="question_{{ question.id }}" class="form-control bg-transparent text-white" {% if question.is_required %}required{% endif %}>
+
+                            {% elif question.question_type == 'PARAGRAPH' %}
+                                <textarea name="question_{{ question.id }}" class="form-control bg-transparent text-white" rows="3" {% if question.is_required %}required{% endif %}></textarea>
+
+                            {% elif question.question_type == 'CHOICE' %}
+                                {% for choice in question.choices.split %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="question_{{ question.id }}" value="{{ choice|strip }}" id="q{{ question.id }}_opt{{ forloop.counter }}" {% if question.is_required %}required{% endif %}>
+                                        <label class="form-check-label text-white" for="q{{ question.id }}_opt{{ forloop.counter }}">
+                                            {{ choice|strip }}
+                                        </label>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <button type="submit" class="btn btn-primary w-100 btn-lg mt-3">Submit Response</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <!-- Form Overview -->
+    <div class="col-md-4 mb-4">
+        <div class="glass-panel p-4 h-100">
+            <h3 class="text-white mb-3">{{ form.title }}</h3>
+            <p class="text-white-50">{{ form.description }}</p>
+            <hr class="border-light opacity-25">
+            <div class="mb-3">
+                <strong class="text-white d-block mb-1">Public Link:</strong>
+                <div class="input-group">
+                    <input type="text" class="form-control bg-transparent text-white" readonly value="{{ request.scheme }}://{{ request.get_host }}{% url 'app_forms:form_serve' form.pk %}">
+                    <a href="{% url 'app_forms:form_serve' form.pk %}" target="_blank" class="btn btn-outline-light">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <hr class="border-light opacity-25">
+
+            <h5 class="text-white mb-3">Share via Email</h5>
+            <form action="{% url 'app_forms:form_share_email' form.pk %}" method="post">
+                {% csrf_token %}
+                <div class="input-group mb-3">
+                    <input type="email" name="recipient_email" class="form-control bg-transparent text-white" placeholder="Recipient Email" required>
+                    <button class="btn btn-primary" type="submit">Send</button>
+                </div>
+            </form>
+
+            <a href="{% url 'app_forms:form_responses' form.pk %}" class="btn btn-outline-info w-100 mt-3">View Responses</a>
+        </div>
+    </div>
+
+    <!-- Questions Builder -->
+    <div class="col-md-8">
+        <div class="glass-panel p-4 mb-4">
+            <h4 class="text-white mb-4">Questions</h4>
+
+            {% for question in form.questions.all %}
+            <div class="card bg-transparent border-light mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <h5 class="card-title text-white">{{ forloop.counter }}. {{ question.question_text }}</h5>
+                        <span class="badge bg-secondary">{{ question.get_question_type_display }}</span>
+                    </div>
+                    {% if question.question_type == 'CHOICE' %}
+                        <p class="card-text text-white-50 small">Options: {{ question.choices }}</p>
+                    {% endif %}
+                    {% if question.is_required %}
+                        <span class="text-danger small">* Required</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-white-50 text-center">No questions added yet.</p>
+            {% endfor %}
+        </div>
+
+        <!-- Add Question Form -->
+        <div class="glass-panel p-4">
+            <h4 class="text-white mb-4">Add Question</h4>
+            <form method="post">
+                {% csrf_token %}
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        <label class="form-label text-white">Question Text</label>
+                        {{ question_form.question_text }}
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label text-white">Type</label>
+                        {{ question_form.question_type }}
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-white">Choices (for Multiple Choice only)</label>
+                    {{ question_form.choices }}
+                    <div class="form-text text-white-50">Comma-separated values (e.g. Yes, No, Maybe)</div>
+                </div>
+                <div class="row align-items-center mb-3">
+                    <div class="col-auto">
+                        <label class="form-label text-white">Order</label>
+                        {{ question_form.order }}
+                    </div>
+                    <div class="col-auto">
+                        <div class="form-check mt-4">
+                            {{ question_form.is_required }}
+                            <label class="form-check-label text-white" for="{{ question_form.is_required.id_for_label }}">
+                                Required
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Add Question</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

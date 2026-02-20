@@ -13,6 +13,7 @@ urlpatterns = [
     path("tickets/", include("app_tickets.urls")),
     path("assets/", include("app_assets.urls")),
     path("kb/", include("app_kb.urls")),
+    path("forms/", include("app_forms.urls")),
     path("accounts/", include("django.contrib.auth.urls")), # Include auth urls for logout
     path('ckeditor/', include('ckeditor_uploader.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
