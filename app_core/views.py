@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from .forms import UserCreateForm
-from .models import UserChecklistTask, AppNotification
+from .models import UserChecklistTask, AppNotification, AddressBookContact
 from app_tickets.models import Ticket
 from app_assets.models import Asset, Category
 
@@ -144,3 +144,21 @@ class ToggleChecklistTaskView(LoginRequiredMixin, View):
         task.is_completed = not task.is_completed
         task.save()
         return redirect('app_core:checklist')
+
+class ContactListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
+    model = AddressBookContact
+    template_name = 'app_core/contact_list.html'
+    context_object_name = 'contacts'
+    ordering = ['name']
+
+class ContactCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
+    model = AddressBookContact
+    fields = ['name', 'email', 'department']
+    template_name = 'app_core/contact_form.html'
+    success_url = reverse_lazy('app_core:contact_list')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        for field in form.fields.values():
+            field.widget.attrs.update({'class': 'form-control bg-transparent text-white'})
+        return form
