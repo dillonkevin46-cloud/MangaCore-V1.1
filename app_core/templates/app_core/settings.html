@@ -28,6 +28,22 @@
     </div>
     {% endif %}
 
+    <!-- Ticket Configuration -->
+    <div class="col-md-4">
+        <div class="card h-100 border-0 glass-panel p-4">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="bi bi-tags-fill fs-1 text-primary"></i>
+                </div>
+                <h3 class="card-title h4 text-white">Ticket Config</h3>
+                <p class="card-text text-white-50 mb-4">Manage ticket categories.</p>
+                <div class="d-grid gap-2">
+                    <a href="{% url 'app_tickets:category_list' %}" class="btn btn-outline-light">Ticket Categories</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Asset Configuration -->
     <div class="col-md-4">
         <div class="card h-100 border-0 glass-panel p-4">

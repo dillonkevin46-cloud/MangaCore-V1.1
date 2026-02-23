@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="glass-panel p-5 text-center">
+            <h2 class="text-white mb-4">Confirm Deletion</h2>
+            <p class="text-white-50 mb-4">Are you sure you want to delete the category "{{ object.name }}"? This action cannot be undone.</p>
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="{% url 'app_tickets:category_list' %}" class="btn btn-outline-light">Cancel</a>
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

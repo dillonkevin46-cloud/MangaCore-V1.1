@@ -3,8 +3,12 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy, reverse
 from django.contrib import messages
-from .models import Ticket, Comment
+from .models import Ticket, Comment, TicketCategory
 from .forms import TicketForm, CommentForm
+
+class StaffRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.is_staff
 
 class TicketListView(LoginRequiredMixin, ListView):
     model = Ticket
@@ -74,10 +78,6 @@ class TicketAddCommentView(LoginRequiredMixin, CreateView):
         messages.error(self.request, "Error adding comment.")
         return redirect('app_tickets:ticket_detail', pk=ticket.pk)
 
-class StaffRequiredMixin(UserPassesTestMixin):
-    def test_func(self):
-        return self.request.user.is_staff
-
 class TicketUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
     model = Ticket
     form_class = TicketForm
@@ -97,3 +97,45 @@ class TicketDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
     model = Ticket
     template_name = 'app_tickets/ticket_confirm_delete.html'
     success_url = reverse_lazy('app_tickets:ticket_list')
+
+class TicketCategoryListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
+    model = TicketCategory
+    template_name = 'app_tickets/category_list.html'
+    context_object_name = 'categories'
+
+class TicketCategoryCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
+    model = TicketCategory
+    fields = ['name', 'description']
+    template_name = 'app_tickets/category_form.html'
+    success_url = reverse_lazy('app_tickets:category_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, "Category created successfully!")
+        return super().form_valid(form)
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        for field in form.fields.values():
+            field.widget.attrs.update({'class': 'form-control bg-transparent text-white'})
+        return form
+
+class TicketCategoryUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
+    model = TicketCategory
+    fields = ['name', 'description']
+    template_name = 'app_tickets/category_form.html'
+    success_url = reverse_lazy('app_tickets:category_list')
+
+    def form_valid(self, form):
+        messages.success(self.request, "Category updated successfully!")
+        return super().form_valid(form)
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        for field in form.fields.values():
+            field.widget.attrs.update({'class': 'form-control bg-transparent text-white'})
+        return form
+
+class TicketCategoryDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
+    model = TicketCategory
+    template_name = 'app_tickets/category_confirm_delete.html'
+    success_url = reverse_lazy('app_tickets:category_list')
