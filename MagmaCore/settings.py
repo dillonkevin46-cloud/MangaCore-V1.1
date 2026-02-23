@@ -185,3 +185,8 @@ CKEDITOR_CONFIGS = {
         'filebrowserBrowseUrl': '/ckeditor/browse/',
     },
 }
+
+# Email-to-Ticket IMAP Settings
+IMAP_SERVER = 'imap.gmail.com' # e.g., imap.gmail.com or outlook.office365.com
+IMAP_USERNAME = 'your_support_email@gmail.com'
+IMAP_PASSWORD = 'your_app_password'
