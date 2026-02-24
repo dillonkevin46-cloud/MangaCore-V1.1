@@ -186,7 +186,8 @@ CKEDITOR_CONFIGS = {
     },
 }
 
-# Email-to-Ticket IMAP Settings
-IMAP_SERVER = 'imap.gmail.com' # e.g., imap.gmail.com or outlook.office365.com
-IMAP_USERNAME = 'your_support_email@gmail.com'
-IMAP_PASSWORD = 'your_app_password'
+# Microsoft Graph API Settings (Email-to-Ticket)
+MS_GRAPH_TENANT_ID = 'your_tenant_id_here'
+MS_GRAPH_CLIENT_ID = 'your_client_id_here'
+MS_GRAPH_CLIENT_SECRET = 'your_client_secret_value_here'
+MS_GRAPH_MAILBOX = 'shared_mailbox@yourdomain.com'

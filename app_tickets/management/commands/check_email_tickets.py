@@ -1,147 +1,132 @@
-import imaplib
-import email
-from email.header import decode_header
+import requests
+import time
 from django.core.management.base import BaseCommand
 from django.conf import settings
+from django.db import close_old_connections
 from django.contrib.auth import get_user_model
-from django.core.files.base import ContentFile
 from app_tickets.models import Ticket
-from django.utils.crypto import get_random_string
 
 User = get_user_model()
 
 class Command(BaseCommand):
-    help = 'Check for new emails and create tickets'
+    help = 'Check for new emails via Microsoft Graph API and create tickets'
 
     def handle(self, *args, **options):
-        imap_server = getattr(settings, 'IMAP_SERVER', None)
-        username = getattr(settings, 'IMAP_USERNAME', None)
-        password = getattr(settings, 'IMAP_PASSWORD', None)
+        self.stdout.write(self.style.SUCCESS("Starting Email-to-Ticket Engine (MS Graph API)..."))
 
-        if not all([imap_server, username, password]):
-            self.stdout.write(self.style.ERROR("IMAP settings are missing in settings.py"))
+        tenant_id = getattr(settings, 'MS_GRAPH_TENANT_ID', None)
+        client_id = getattr(settings, 'MS_GRAPH_CLIENT_ID', None)
+        client_secret = getattr(settings, 'MS_GRAPH_CLIENT_SECRET', None)
+        mailbox = getattr(settings, 'MS_GRAPH_MAILBOX', None)
+
+        if not all([tenant_id, client_id, client_secret, mailbox]):
+            self.stdout.write(self.style.ERROR("Missing MS Graph API settings in settings.py"))
             return
 
-        try:
-            self.stdout.write(f"Connecting to {imap_server}...")
-            mail = imaplib.IMAP4_SSL(imap_server)
-            mail.login(username, password)
-            mail.select("inbox")
+        while True:
+            # Prevent stale DB connections
+            close_old_connections()
 
-            status, messages = mail.search(None, 'UNSEEN')
-            email_ids = messages[0].split()
+            try:
+                # Step A: Get Access Token
+                token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+                token_data = {
+                    'client_id': client_id,
+                    'scope': 'https://graph.microsoft.com/.default',
+                    'client_secret': client_secret,
+                    'grant_type': 'client_credentials'
+                }
 
-            if not email_ids:
-                self.stdout.write(self.style.SUCCESS("No new emails found."))
-                return
-
-            self.stdout.write(self.style.SUCCESS(f"Found {len(email_ids)} new emails. Processing..."))
-
-            for email_id in email_ids:
                 try:
-                    res, msg_data = mail.fetch(email_id, "(RFC822)")
-                    for response_part in msg_data:
-                        if isinstance(response_part, tuple):
-                            msg = email.message_from_bytes(response_part[1])
+                    token_response = requests.post(token_url, data=token_data)
+                    token_response.raise_for_status()
+                    access_token = token_response.json().get('access_token')
 
-                            subject_header = msg["Subject"]
-                            if subject_header:
-                                decoded_list = decode_header(subject_header)
-                                subject = ""
-                                for s, encoding in decoded_list:
-                                    if isinstance(s, bytes):
-                                        subject += s.decode(encoding if encoding else "utf-8")
-                                    else:
-                                        subject += s
-                            else:
-                                subject = "No Subject"
+                    if not access_token:
+                        self.stdout.write(self.style.ERROR("Failed to retrieve access token."))
+                        time.sleep(60)
+                        continue
 
-                            from_header = msg.get("From")
-                            sender_email = email.utils.parseaddr(from_header)[1]
+                except requests.RequestException as e:
+                     self.stdout.write(self.style.ERROR(f"Token Request Failed: {e}"))
+                     time.sleep(60)
+                     continue
 
-                            self.stdout.write(f"Processing email from {sender_email}: {subject}")
+                headers = {
+                    'Authorization': f'Bearer {access_token}',
+                    'Content-Type': 'application/json'
+                }
 
-                            # Find or Create User
-                            try:
-                                user = User.objects.get(email=sender_email)
-                            except User.DoesNotExist:
-                                username_base = sender_email.split('@')[0]
-                                username = username_base
-                                counter = 1
-                                while User.objects.filter(username=username).exists():
-                                    username = f"{username_base}_{counter}"
-                                    counter += 1
+                # Step B: Fetch Unread Emails
+                messages_url = f"https://graph.microsoft.com/v1.0/users/{mailbox}/mailFolders/inbox/messages?$filter=isRead eq false"
 
-                                user = User.objects.create_user(
-                                    username=username,
-                                    email=sender_email,
-                                    password=get_random_string(12)
-                                )
-                                self.stdout.write(self.style.SUCCESS(f"Created new user: {user.username}"))
-                            except User.MultipleObjectsReturned:
-                                # Fallback if multiple users share email (shouldn't happen ideally)
-                                user = User.objects.filter(email=sender_email).first()
+                try:
+                    messages_response = requests.get(messages_url, headers=headers)
+                    messages_response.raise_for_status()
+                    emails = messages_response.json().get('value', [])
+                except requests.RequestException as e:
+                    self.stdout.write(self.style.ERROR(f"Failed to fetch messages: {e}"))
+                    time.sleep(60)
+                    continue
 
-                            # Extract Body
-                            body = ""
-                            if msg.is_multipart():
-                                for part in msg.walk():
-                                    content_type = part.get_content_type()
-                                    content_disposition = str(part.get("Content-Disposition"))
+                if not emails:
+                    self.stdout.write(self.style.SUCCESS("No new emails found."))
+                else:
+                    self.stdout.write(self.style.SUCCESS(f"Found {len(emails)} new emails."))
 
-                                    if content_type == "text/plain" and "attachment" not in content_disposition:
-                                        payload = part.get_payload(decode=True)
-                                        if payload:
-                                            charset = part.get_content_charset() or 'utf-8'
-                                            body = payload.decode(charset, errors='replace')
-                                        break
-                            else:
-                                payload = msg.get_payload(decode=True)
-                                if payload:
-                                    charset = msg.get_content_charset() or 'utf-8'
-                                    body = payload.decode(charset, errors='replace')
+                # Step C: Process and Create Tickets
+                for email_data in emails:
+                    email_id = email_data.get('id')
+                    subject = email_data.get('subject', 'No Subject')
 
-                            # Create Ticket
-                            ticket = Ticket.objects.create(
-                                title=subject,
-                                description=body,
-                                creator=user,
-                                status=Ticket.Status.OPEN,
-                                priority=Ticket.Priority.MEDIUM
-                            )
+                    # Try to get body content, fallback to bodyPreview
+                    body_content = email_data.get('body', {}).get('content', '')
+                    body_preview = email_data.get('bodyPreview', '')
+                    description = body_content if body_content else body_preview
 
-                            # Handle Attachments
-                            for part in msg.walk():
-                                if part.get_content_maintype() == 'multipart':
-                                    continue
-                                if part.get('Content-Disposition') is None:
-                                    continue
+                    sender_email = email_data.get('from', {}).get('emailAddress', {}).get('address', 'unknown@example.com')
 
-                                filename = part.get_filename()
-                                if filename:
-                                    filename_parts = decode_header(filename)
-                                    decoded_filename = ""
-                                    for f, encoding in filename_parts:
-                                        if isinstance(f, bytes):
-                                            decoded_filename += f.decode(encoding if encoding else 'utf-8')
-                                        else:
-                                            decoded_filename += f
-                                    filename = decoded_filename
+                    self.stdout.write(f"Processing email: {subject} from {sender_email}")
 
-                                    content = part.get_payload(decode=True)
-                                    if content:
-                                        # Save attachment
-                                        ticket.attachment.save(filename, ContentFile(content))
-                                        self.stdout.write(f"Saved attachment: {filename}")
-                                        break # Limit to one per ticket based on current model
+                    # Find or Create User (Simple logic to assign creator)
+                    # If user exists, assign them. If not, assign to a default 'system' user or create one?
+                    # The prompt said "Create a Ticket object (e.g., title=subject, description=body, status='OPEN')."
+                    # But the Ticket model requires a 'creator'.
+                    # I will replicate the previous logic: Find or Create User based on sender email.
 
-                            self.stdout.write(self.style.SUCCESS(f"Ticket #{ticket.id} created."))
+                    user, created = User.objects.get_or_create(email=sender_email)
+                    if created:
+                        user.username = sender_email.split('@')[0]
+                        # Ensure uniqueness
+                        if User.objects.filter(username=user.username).exists():
+                             import random
+                             user.username = f"{user.username}_{random.randint(1000, 9999)}"
+                        user.set_password(User.objects.make_random_password())
+                        user.save()
+                        self.stdout.write(self.style.SUCCESS(f"Created new user: {user.username}"))
 
-                except Exception as e:
-                    self.stdout.write(self.style.ERROR(f"Error processing email {email_id}: {e}"))
+                    # Create Ticket
+                    try:
+                        Ticket.objects.create(
+                            title=subject[:200], # Truncate to max_length
+                            description=description,
+                            creator=user,
+                            status=Ticket.Status.OPEN,
+                            priority=Ticket.Priority.MEDIUM
+                        )
+                        self.stdout.write(self.style.SUCCESS(f"Ticket created for: {subject}"))
 
-            mail.close()
-            mail.logout()
+                        # Step D: Mark as Read
+                        patch_url = f"https://graph.microsoft.com/v1.0/users/{mailbox}/messages/{email_id}"
+                        patch_data = {'isRead': True}
+                        requests.patch(patch_url, headers=headers, json=patch_data)
 
-        except Exception as e:
-            self.stdout.write(self.style.ERROR(f"IMAP Connection Error: {e}"))
+                    except Exception as e:
+                         self.stdout.write(self.style.ERROR(f"Error creating ticket: {e}"))
+
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Unexpected error in main loop: {e}"))
+
+            # Sleep for 60 seconds
+            self.stdout.write("Sleeping for 60 seconds...")
+            time.sleep(60)
