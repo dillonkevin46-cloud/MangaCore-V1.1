@@ -3,8 +3,9 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy, reverse
 from django.contrib import messages
-from .models import Ticket, Comment, TicketCategory
+from .models import Ticket, TicketComment, TicketCategory
 from .forms import TicketForm, CommentForm
+from .utils import send_graph_email
 
 class StaffRequiredMixin(UserPassesTestMixin):
     def test_func(self):
@@ -57,20 +58,39 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
         if self.request.user.is_staff:
              context['comments'] = self.object.comments.all().order_by('created_at')
         else:
-             context['comments'] = self.object.comments.filter(is_public=True).order_by('created_at')
+             context['comments'] = self.object.comments.filter(is_internal=False).order_by('created_at')
         return context
 
 class TicketAddCommentView(LoginRequiredMixin, CreateView):
-    model = Comment
+    model = TicketComment
     form_class = CommentForm
     template_name = 'app_tickets/ticket_detail.html' # Fallback, though we usually redirect
 
     def form_valid(self, form):
         ticket = get_object_or_404(Ticket, pk=self.kwargs['pk'])
         form.instance.ticket = ticket
-        form.instance.author = self.request.user
+        form.instance.user = self.request.user
         form.save()
         messages.success(self.request, "Comment added.")
+
+        # Handle Outbound Email Notification if not internal
+        is_internal = form.cleaned_data.get('is_internal', False)
+        if not is_internal and ticket.creator and ticket.creator.email:
+            # We don't want to email the person who just commented
+            if ticket.creator != self.request.user:
+                send_graph_email(
+                    to_email=ticket.creator.email,
+                    subject=f"RE: {ticket.title}",
+                    body_text=form.cleaned_data.get('comment', '')
+                )
+            elif ticket.assigned_agent and ticket.assigned_agent.email and ticket.assigned_agent != self.request.user:
+                # If creator commented, email assigned agent
+                 send_graph_email(
+                    to_email=ticket.assigned_agent.email,
+                    subject=f"RE: {ticket.title}",
+                    body_text=form.cleaned_data.get('comment', '')
+                )
+
         return redirect('app_tickets:ticket_detail', pk=ticket.pk)
 
     def form_invalid(self, form):
