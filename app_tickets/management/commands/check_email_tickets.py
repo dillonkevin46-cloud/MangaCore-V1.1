@@ -87,18 +87,23 @@ class Command(BaseCommand):
                     body_preview = email_data.get('bodyPreview', '')
                     description = body_content if body_content else body_preview
 
-                    sender_email = email_data.get('from', {}).get('emailAddress', {}).get('address', 'unknown@example.com')
+                    sender_email = email_data.get('from', {}).get('emailAddress', {}).get('address')
+                    sender_email = sender_email if sender_email else "unknown@magmacore.local"
 
                     self.stdout.write(f"Processing email: {subject} from {sender_email}")
 
                     # Find or Create User
                     user, created = User.objects.get_or_create(email=sender_email)
                     if created:
-                        user.username = sender_email.split('@')[0]
+                        from django.utils.crypto import get_random_string
+                        username_base = sender_email.split('@')[0] if '@' in sender_email else 'unknown_user'
+                        if not username_base:
+                            username_base = f"user_{get_random_string(6)}"
+
+                        user.username = username_base
                         # Ensure uniqueness
                         if User.objects.filter(username=user.username).exists():
-                             import random
-                             user.username = f"{user.username}_{random.randint(1000, 9999)}"
+                             user.username = f"{username_base}_{get_random_string(4)}"
                         user.set_password(User.objects.make_random_password())
                         user.save()
                         self.stdout.write(self.style.SUCCESS(f"Created new user: {user.username}"))
