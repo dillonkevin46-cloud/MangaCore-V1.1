@@ -1,10 +1,12 @@
 import requests
 import time
+import base64
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.db import close_old_connections
 from django.contrib.auth import get_user_model
-from app_tickets.models import Ticket
+from django.core.files.base import ContentFile
+from app_tickets.models import Ticket, TicketAttachment
 
 User = get_user_model()
 
@@ -78,6 +80,7 @@ class Command(BaseCommand):
                 for email_data in emails:
                     email_id = email_data.get('id')
                     subject = email_data.get('subject', 'No Subject')
+                    has_attachments = email_data.get('hasAttachments', False)
 
                     # Try to get body content, fallback to bodyPreview
                     body_content = email_data.get('body', {}).get('content', '')
@@ -88,12 +91,7 @@ class Command(BaseCommand):
 
                     self.stdout.write(f"Processing email: {subject} from {sender_email}")
 
-                    # Find or Create User (Simple logic to assign creator)
-                    # If user exists, assign them. If not, assign to a default 'system' user or create one?
-                    # The prompt said "Create a Ticket object (e.g., title=subject, description=body, status='OPEN')."
-                    # But the Ticket model requires a 'creator'.
-                    # I will replicate the previous logic: Find or Create User based on sender email.
-
+                    # Find or Create User
                     user, created = User.objects.get_or_create(email=sender_email)
                     if created:
                         user.username = sender_email.split('@')[0]
@@ -107,7 +105,7 @@ class Command(BaseCommand):
 
                     # Create Ticket
                     try:
-                        Ticket.objects.create(
+                        ticket = Ticket.objects.create(
                             title=subject[:200], # Truncate to max_length
                             description=description,
                             creator=user,
@@ -115,6 +113,25 @@ class Command(BaseCommand):
                             priority=Ticket.Priority.MEDIUM
                         )
                         self.stdout.write(self.style.SUCCESS(f"Ticket created for: {subject}"))
+
+                        # Fetch and Save Attachments
+                        if has_attachments:
+                            attachments_url = f"https://graph.microsoft.com/v1.0/users/{mailbox}/messages/{email_id}/attachments"
+                            try:
+                                att_response = requests.get(attachments_url, headers=headers)
+                                att_response.raise_for_status()
+                                attachments = att_response.json().get('value', [])
+
+                                for att in attachments:
+                                    if 'contentBytes' in att and att.get('name'):
+                                        file_data = base64.b64decode(att['contentBytes'])
+                                        attachment = TicketAttachment(ticket=ticket, filename=att['name'])
+                                        attachment.file.save(att['name'], ContentFile(file_data), save=True)
+                                        self.stdout.write(self.style.SUCCESS(f"Saved attachment: {att['name']}"))
+                            except requests.RequestException as e:
+                                self.stdout.write(self.style.ERROR(f"Failed to fetch attachments for {email_id}: {e}"))
+                            except Exception as e:
+                                self.stdout.write(self.style.ERROR(f"Error saving attachment: {e}"))
 
                         # Step D: Mark as Read
                         patch_url = f"https://graph.microsoft.com/v1.0/users/{mailbox}/messages/{email_id}"

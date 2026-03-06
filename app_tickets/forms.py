@@ -1,5 +1,5 @@
 from django import forms
-from .models import Ticket, Comment
+from .models import Ticket, TicketComment
 
 class TicketForm(forms.ModelForm):
     class Meta:
@@ -23,9 +23,9 @@ class TicketForm(forms.ModelForm):
 
 class CommentForm(forms.ModelForm):
     class Meta:
-        model = Comment
-        fields = ['content', 'is_public']
+        model = TicketComment
+        fields = ['comment', 'is_internal']
         widgets = {
-            'content': forms.Textarea(attrs={'class': 'form-control bg-transparent text-white', 'rows': 3}),
-            'is_public': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'comment': forms.Textarea(attrs={'class': 'form-control bg-transparent text-white', 'rows': 3}),
+            'is_internal': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
