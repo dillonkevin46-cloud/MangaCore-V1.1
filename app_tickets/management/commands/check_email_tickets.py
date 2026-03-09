@@ -110,14 +110,20 @@ class Command(BaseCommand):
                                 attachments = att_response.json().get('value', [])
 
                                 for att in attachments:
-                                    if 'contentBytes' in att and att.get('name'):
-                                        file_data = base64.b64decode(att['contentBytes'])
+                                    if 'contentBytes' in att:
+                                        raw_name = att.get('name')
+                                        if not raw_name:
+                                            filename = f"image_{get_random_string(6)}.png"
+                                        else:
+                                            filename = raw_name
+
+                                        decoded_bytes = base64.b64decode(att['contentBytes'])
                                         TicketAttachment.objects.create(
                                             ticket=ticket,
-                                            file=ContentFile(file_data, name=att['name']),
-                                            filename=att['name']
+                                            file=ContentFile(decoded_bytes, name=filename),
+                                            filename=filename
                                         )
-                                        self.stdout.write(self.style.SUCCESS(f"Saved attachment: {att['name']}"))
+                                        self.stdout.write(self.style.SUCCESS(f"Saved attachment: {filename}"))
                             except requests.RequestException as e:
                                 self.stdout.write(self.style.ERROR(f"Failed to fetch attachments for {email_id}: {e}"))
                             except Exception as e:

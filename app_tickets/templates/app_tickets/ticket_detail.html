@@ -42,30 +42,21 @@
                 {{ ticket.description|safe }}
             </div>
 
-            {% if ticket.attachment %}
-            <div class="mb-4">
-                <p class="text-white-50 mb-2">Original Attachment:</p>
-                <a href="{{ ticket.attachment.url }}" class="btn btn-outline-light btn-sm" target="_blank">
-                    <i class="bi bi-paperclip"></i> View Attachment
-                </a>
-            </div>
-            {% endif %}
-
             {% if ticket.attachments.exists %}
             <div class="mb-4">
-                <p class="text-white-50 mb-2">Email Attachments:</p>
+                <p class="text-white-50 mb-2">Attachments:</p>
                 <ul class="list-unstyled">
-                {% for att in ticket.attachments.all %}
+                {% for attachment in ticket.attachments.all %}
                     <li class="mb-3">
-                        {% if ".jpg" in att.filename|lower or ".png" in att.filename|lower or ".gif" in att.filename|lower %}
+                        {% if ".jpg" in attachment.filename|lower or ".png" in attachment.filename|lower or ".gif" in attachment.filename|lower or ".jpeg" in attachment.filename|lower or ".webp" in attachment.filename|lower or ".bmp" in attachment.filename|lower %}
                             <div class="mb-2">
-                                <a href="{{ att.file.url }}" target="_blank">
-                                    <img src="{{ att.file.url }}" alt="{{ att.filename }}" class="img-fluid rounded" style="max-height: 200px;">
+                                <a href="{{ attachment.file.url }}" target="_blank">
+                                    <img src="{{ attachment.file.url }}" alt="{{ attachment.filename }}" class="img-fluid rounded mb-3 shadow" style="max-height: 600px; display: block;">
                                 </a>
                             </div>
                         {% else %}
-                            <a href="{{ att.file.url }}" class="btn btn-outline-info btn-sm" target="_blank">
-                                <i class="bi bi-download"></i> Download {{ att.filename }}
+                            <a href="{{ attachment.file.url }}" class="btn btn-outline-light btn-sm mb-3 me-2" target="_blank">
+                                <i class="bi bi-paperclip"></i> Download {{ attachment.filename }}
                             </a>
                         {% endif %}
                     </li>
