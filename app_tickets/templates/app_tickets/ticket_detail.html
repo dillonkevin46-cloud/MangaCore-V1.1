@@ -51,15 +51,23 @@
             </div>
             {% endif %}
 
-            {% if ticket.ticketattachment_set.exists %}
+            {% if ticket.attachments.exists %}
             <div class="mb-4">
                 <p class="text-white-50 mb-2">Email Attachments:</p>
                 <ul class="list-unstyled">
-                {% for att in ticket.ticketattachment_set.all %}
-                    <li class="mb-2">
-                        <a href="{{ att.file.url }}" class="btn btn-outline-info btn-sm" target="_blank">
-                            <i class="bi bi-file-earmark"></i> {{ att.filename }}
-                        </a>
+                {% for att in ticket.attachments.all %}
+                    <li class="mb-3">
+                        {% if ".jpg" in att.filename|lower or ".png" in att.filename|lower or ".gif" in att.filename|lower %}
+                            <div class="mb-2">
+                                <a href="{{ att.file.url }}" target="_blank">
+                                    <img src="{{ att.file.url }}" alt="{{ att.filename }}" class="img-fluid rounded" style="max-height: 200px;">
+                                </a>
+                            </div>
+                        {% else %}
+                            <a href="{{ att.file.url }}" class="btn btn-outline-info btn-sm" target="_blank">
+                                <i class="bi bi-download"></i> Download {{ att.filename }}
+                            </a>
+                        {% endif %}
                     </li>
                 {% endfor %}
                 </ul>
@@ -80,7 +88,7 @@
                     </div>
                     <p class="text-white mb-0">{{ comment.comment }}</p>
                     {% if comment.is_internal %}
-                        <span class="badge bg-warning text-dark mt-2"><i class="bi bi-lock-fill"></i> 🔒 Internal Note</span>
+                        <span class="badge bg-warning text-dark mt-2"><i class="bi bi-lock-fill"></i> 🔒 Private Note</span>
                     {% endif %}
                 </li>
                 {% empty %}
