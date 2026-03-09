@@ -6,7 +6,9 @@ from django.conf import settings
 from django.db import close_old_connections
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
+from django.utils.crypto import get_random_string
 from app_tickets.models import Ticket, TicketAttachment
+from app_tickets.utils import get_graph_token
 
 User = get_user_model()
 
@@ -16,13 +18,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS("Starting Email-to-Ticket Engine (MS Graph API)..."))
 
-        tenant_id = getattr(settings, 'MS_GRAPH_TENANT_ID', None)
-        client_id = getattr(settings, 'MS_GRAPH_CLIENT_ID', None)
-        client_secret = getattr(settings, 'MS_GRAPH_CLIENT_SECRET', None)
         mailbox = getattr(settings, 'MS_GRAPH_MAILBOX', None)
 
-        if not all([tenant_id, client_id, client_secret, mailbox]):
-            self.stdout.write(self.style.ERROR("Missing MS Graph API settings in settings.py"))
+        if not mailbox:
+            self.stdout.write(self.style.ERROR("Missing MS_GRAPH_MAILBOX setting in settings.py"))
             return
 
         while True:
@@ -30,36 +29,20 @@ class Command(BaseCommand):
             close_old_connections()
 
             try:
-                # Step A: Get Access Token
-                token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-                token_data = {
-                    'client_id': client_id,
-                    'scope': 'https://graph.microsoft.com/.default',
-                    'client_secret': client_secret,
-                    'grant_type': 'client_credentials'
-                }
+                # Get Token
+                access_token = get_graph_token()
 
-                try:
-                    token_response = requests.post(token_url, data=token_data)
-                    token_response.raise_for_status()
-                    access_token = token_response.json().get('access_token')
-
-                    if not access_token:
-                        self.stdout.write(self.style.ERROR("Failed to retrieve access token."))
-                        time.sleep(60)
-                        continue
-
-                except requests.RequestException as e:
-                     self.stdout.write(self.style.ERROR(f"Token Request Failed: {e}"))
-                     time.sleep(60)
-                     continue
+                if not access_token:
+                    self.stdout.write(self.style.ERROR("Failed to retrieve access token."))
+                    time.sleep(60)
+                    continue
 
                 headers = {
                     'Authorization': f'Bearer {access_token}',
                     'Content-Type': 'application/json'
                 }
 
-                # Step B: Fetch Unread Emails
+                # Fetch Unread Emails
                 messages_url = f"https://graph.microsoft.com/v1.0/users/{mailbox}/mailFolders/inbox/messages?$filter=isRead eq false"
 
                 try:
@@ -76,7 +59,7 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write(self.style.SUCCESS(f"Found {len(emails)} new emails."))
 
-                # Step C: Process and Create Tickets
+                # Process and Create Tickets
                 for email_data in emails:
                     email_id = email_data.get('id')
                     subject = email_data.get('subject', 'No Subject')
@@ -95,7 +78,6 @@ class Command(BaseCommand):
                     # Find or Create User
                     user, created = User.objects.get_or_create(email=sender_email)
                     if created:
-                        from django.utils.crypto import get_random_string
                         username_base = sender_email.split('@')[0] if '@' in sender_email else 'unknown_user'
                         if not username_base:
                             username_base = f"user_{get_random_string(6)}"
@@ -130,15 +112,18 @@ class Command(BaseCommand):
                                 for att in attachments:
                                     if 'contentBytes' in att and att.get('name'):
                                         file_data = base64.b64decode(att['contentBytes'])
-                                        attachment = TicketAttachment(ticket=ticket, filename=att['name'])
-                                        attachment.file.save(att['name'], ContentFile(file_data), save=True)
+                                        TicketAttachment.objects.create(
+                                            ticket=ticket,
+                                            file=ContentFile(file_data, name=att['name']),
+                                            filename=att['name']
+                                        )
                                         self.stdout.write(self.style.SUCCESS(f"Saved attachment: {att['name']}"))
                             except requests.RequestException as e:
                                 self.stdout.write(self.style.ERROR(f"Failed to fetch attachments for {email_id}: {e}"))
                             except Exception as e:
                                 self.stdout.write(self.style.ERROR(f"Error saving attachment: {e}"))
 
-                        # Step D: Mark as Read
+                        # Mark as Read
                         patch_url = f"https://graph.microsoft.com/v1.0/users/{mailbox}/messages/{email_id}"
                         patch_data = {'isRead': True}
                         requests.patch(patch_url, headers=headers, json=patch_data)

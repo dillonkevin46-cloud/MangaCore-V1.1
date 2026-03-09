@@ -59,17 +59,17 @@ class Ticket(models.Model):
         return f"#{self.id} - {self.title}"
 
 class TicketAttachment(models.Model):
-    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE)
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='attachments')
     file = models.FileField(upload_to='ticket_attachments/')
     filename = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Attachment {self.filename} for Ticket #{self.ticket.id}"
 
 class TicketComment(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='comments')
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     comment = models.TextField()
     is_internal = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
