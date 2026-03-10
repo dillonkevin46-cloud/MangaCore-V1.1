@@ -1,13 +1,14 @@
 import requests
 import time
 import base64
+import re
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.db import close_old_connections
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.utils.crypto import get_random_string
-from app_tickets.models import Ticket, TicketAttachment
+from app_tickets.models import Ticket, TicketAttachment, TicketComment
 from app_tickets.utils import get_graph_token
 
 User = get_user_model()
@@ -90,16 +91,40 @@ class Command(BaseCommand):
                         user.save()
                         self.stdout.write(self.style.SUCCESS(f"Created new user: {user.username}"))
 
-                    # Create Ticket
+                    # Email Threading Logic
+                    match = re.search(r'#(\d+)', subject)
+                    ticket = None
+                    is_reply = False
+
+                    if match:
+                        try:
+                            existing_ticket = Ticket.objects.get(id=int(match.group(1)))
+                            ticket = existing_ticket
+                            is_reply = True
+                        except Ticket.DoesNotExist:
+                            pass
+
                     try:
-                        ticket = Ticket.objects.create(
-                            title=subject[:200], # Truncate to max_length
-                            description=description,
-                            creator=user,
-                            status=Ticket.Status.OPEN,
-                            priority=Ticket.Priority.MEDIUM
-                        )
-                        self.stdout.write(self.style.SUCCESS(f"Ticket created for: {subject}"))
+                        if is_reply:
+                            # Create Comment
+                            target_obj = TicketComment.objects.create(
+                                ticket=ticket,
+                                user=user,
+                                comment=description,
+                                is_internal=False
+                            )
+                            self.stdout.write(self.style.SUCCESS(f"Comment created for Ticket #{ticket.id}"))
+                        else:
+                            # Create New Ticket
+                            ticket = Ticket.objects.create(
+                                title=subject[:200], # Truncate to max_length
+                                description=description,
+                                creator=user,
+                                status=Ticket.Status.OPEN,
+                                priority=Ticket.Priority.MEDIUM
+                            )
+                            target_obj = ticket
+                            self.stdout.write(self.style.SUCCESS(f"Ticket created: #{ticket.id}"))
 
                         # Fetch and Save Attachments
                         if has_attachments:
@@ -110,20 +135,36 @@ class Command(BaseCommand):
                                 attachments = att_response.json().get('value', [])
 
                                 for att in attachments:
-                                    if 'contentBytes' in att:
+                                    content_bytes = att.get('contentBytes', '')
+                                    if content_bytes:
                                         raw_name = att.get('name')
                                         if not raw_name:
                                             filename = f"image_{get_random_string(6)}.png"
                                         else:
                                             filename = raw_name
 
-                                        decoded_bytes = base64.b64decode(att['contentBytes'])
-                                        TicketAttachment.objects.create(
+                                        # Fix missing base64 padding to prevent binascii errors
+                                        content_bytes += "=" * ((4 - len(content_bytes) % 4) % 4)
+                                        decoded_bytes = base64.b64decode(content_bytes)
+
+                                        attachment = TicketAttachment.objects.create(
                                             ticket=ticket,
                                             file=ContentFile(decoded_bytes, name=filename),
                                             filename=filename
                                         )
                                         self.stdout.write(self.style.SUCCESS(f"Saved attachment: {filename}"))
+
+                                        # Search and replace the broken CID inline image
+                                        cid = att.get('contentId')
+                                        if cid:
+                                            clean_cid = cid.strip('<>')
+                                            if hasattr(target_obj, 'description'):
+                                                target_obj.description = target_obj.description.replace(f"cid:{clean_cid}", attachment.file.url)
+                                            elif hasattr(target_obj, 'comment'):
+                                                target_obj.comment = target_obj.comment.replace(f"cid:{clean_cid}", attachment.file.url)
+                                            elif hasattr(target_obj, 'content'):
+                                                target_obj.content = target_obj.content.replace(f"cid:{clean_cid}", attachment.file.url)
+                                            target_obj.save()
                             except requests.RequestException as e:
                                 self.stdout.write(self.style.ERROR(f"Failed to fetch attachments for {email_id}: {e}"))
                             except Exception as e:
@@ -135,7 +176,7 @@ class Command(BaseCommand):
                         requests.patch(patch_url, headers=headers, json=patch_data)
 
                     except Exception as e:
-                         self.stdout.write(self.style.ERROR(f"Error creating ticket: {e}"))
+                         self.stdout.write(self.style.ERROR(f"Error creating ticket/comment: {e}"))
 
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"Unexpected error in main loop: {e}"))
