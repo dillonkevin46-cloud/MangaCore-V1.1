@@ -14,7 +14,7 @@ from app_tickets.utils import get_graph_token
 User = get_user_model()
 
 class Command(BaseCommand):
-    help = 'Check for new emails via Microsoft Graph API and create tickets'
+    help = 'Check for new emails via Microsoft Graph API and create tickets or comments'
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS("Starting Email-to-Ticket Engine (MS Graph API)..."))
@@ -60,7 +60,7 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write(self.style.SUCCESS(f"Found {len(emails)} new emails."))
 
-                # Process and Create Tickets
+                # Process and Create Tickets or Comments
                 for email_data in emails:
                     email_id = email_data.get('id')
                     subject = email_data.get('subject', 'No Subject')
@@ -91,10 +91,11 @@ class Command(BaseCommand):
                         user.save()
                         self.stdout.write(self.style.SUCCESS(f"Created new user: {user.username}"))
 
-                    # Email Threading Logic
+                    # Threading Logic
                     match = re.search(r'#(\d+)', subject)
                     ticket = None
                     is_reply = False
+                    target_obj = None
 
                     if match:
                         try:
@@ -102,7 +103,7 @@ class Command(BaseCommand):
                             ticket = existing_ticket
                             is_reply = True
                         except Ticket.DoesNotExist:
-                            pass
+                            is_reply = False
 
                     try:
                         if is_reply:
@@ -117,7 +118,7 @@ class Command(BaseCommand):
                         else:
                             # Create New Ticket
                             ticket = Ticket.objects.create(
-                                title=subject[:200], # Truncate to max_length
+                                title=subject[:200],
                                 description=description,
                                 creator=user,
                                 status=Ticket.Status.OPEN,
@@ -154,9 +155,10 @@ class Command(BaseCommand):
                                         )
                                         self.stdout.write(self.style.SUCCESS(f"Saved attachment: {filename}"))
 
-                                        # Search and replace the broken CID inline image
+                                        # Search and replace the broken CID inline image in the target object
                                         cid = att.get('contentId')
                                         if cid:
+                                            # Outlook sometimes wraps the ID in angle brackets
                                             clean_cid = cid.strip('<>')
                                             if hasattr(target_obj, 'description'):
                                                 target_obj.description = target_obj.description.replace(f"cid:{clean_cid}", attachment.file.url)
@@ -165,6 +167,7 @@ class Command(BaseCommand):
                                             elif hasattr(target_obj, 'content'):
                                                 target_obj.content = target_obj.content.replace(f"cid:{clean_cid}", attachment.file.url)
                                             target_obj.save()
+
                             except requests.RequestException as e:
                                 self.stdout.write(self.style.ERROR(f"Failed to fetch attachments for {email_id}: {e}"))
                             except Exception as e:
