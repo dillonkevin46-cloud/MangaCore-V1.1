@@ -1,189 +1,165 @@
+import base64
 import requests
 import time
-import base64
 import re
 from django.core.management.base import BaseCommand
 from django.conf import settings
-from django.db import close_old_connections
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.utils.crypto import get_random_string
-from app_tickets.models import Ticket, TicketAttachment, TicketComment
-from app_tickets.utils import get_graph_token
+from django.db import close_old_connections
+
+# Dynamically load the models
+from django.apps import apps
+from app_tickets.models import Ticket, TicketAttachment
 
 User = get_user_model()
 
 class Command(BaseCommand):
-    help = 'Check for new emails via Microsoft Graph API and create tickets or comments'
+    help = 'Check for new emails and process Tickets/Replies via MS Graph API'
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.SUCCESS("Starting Email-to-Ticket Engine (MS Graph API)..."))
+        try:
+            CommentModel = apps.get_model('app_tickets', 'TicketComment')
+        except LookupError:
+            try:
+                CommentModel = apps.get_model('app_tickets', 'Comment')
+            except LookupError:
+                CommentModel = None
 
+        tenant_id = getattr(settings, 'MS_GRAPH_TENANT_ID', None)
+        client_id = getattr(settings, 'MS_GRAPH_CLIENT_ID', None)
+        client_secret = getattr(settings, 'MS_GRAPH_CLIENT_SECRET', None)
         mailbox = getattr(settings, 'MS_GRAPH_MAILBOX', None)
 
-        if not mailbox:
-            self.stdout.write(self.style.ERROR("Missing MS_GRAPH_MAILBOX setting in settings.py"))
+        if not all([tenant_id, client_id, client_secret, mailbox]):
+            self.stdout.write(self.style.ERROR("MS Graph API settings are missing."))
             return
 
+        self.stdout.write(self.style.SUCCESS("Starting Aggressive Email Engine (Regex CID & Threading)..."))
+
         while True:
-            # Prevent stale DB connections
             close_old_connections()
-
             try:
-                # Get Token
-                access_token = get_graph_token()
+                # 1. Get Access Token
+                token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+                token_r = requests.post(token_url, data={
+                    'client_id': client_id,
+                    'scope': 'https://graph.microsoft.com/.default',
+                    'client_secret': client_secret,
+                    'grant_type': 'client_credentials'
+                })
+                token_r.raise_for_status()
+                access_token = token_r.json().get('access_token')
+                headers = {'Authorization': f'Bearer {access_token}', 'Content-Type': 'application/json'}
 
-                if not access_token:
-                    self.stdout.write(self.style.ERROR("Failed to retrieve access token."))
-                    time.sleep(60)
-                    continue
-
-                headers = {
-                    'Authorization': f'Bearer {access_token}',
-                    'Content-Type': 'application/json'
-                }
-
-                # Fetch Unread Emails
+                # 2. Fetch Unread Emails
                 messages_url = f"https://graph.microsoft.com/v1.0/users/{mailbox}/mailFolders/inbox/messages?$filter=isRead eq false"
+                messages_r = requests.get(messages_url, headers=headers)
+                messages_r.raise_for_status()
+                messages_data = messages_r.json().get('value', [])
 
-                try:
-                    messages_response = requests.get(messages_url, headers=headers)
-                    messages_response.raise_for_status()
-                    emails = messages_response.json().get('value', [])
-                except requests.RequestException as e:
-                    self.stdout.write(self.style.ERROR(f"Failed to fetch messages: {e}"))
-                    time.sleep(60)
-                    continue
-
-                if not emails:
-                    self.stdout.write(self.style.SUCCESS("No new emails found."))
-                else:
-                    self.stdout.write(self.style.SUCCESS(f"Found {len(emails)} new emails."))
-
-                # Process and Create Tickets or Comments
-                for email_data in emails:
-                    email_id = email_data.get('id')
-                    subject = email_data.get('subject', 'No Subject')
-                    has_attachments = email_data.get('hasAttachments', False)
-
-                    # Try to get body content, fallback to bodyPreview
-                    body_content = email_data.get('body', {}).get('content', '')
-                    body_preview = email_data.get('bodyPreview', '')
-                    description = body_content if body_content else body_preview
-
-                    sender_email = email_data.get('from', {}).get('emailAddress', {}).get('address')
-                    sender_email = sender_email if sender_email else "unknown@magmacore.local"
-
-                    self.stdout.write(f"Processing email: {subject} from {sender_email}")
-
-                    # Find or Create User
-                    user, created = User.objects.get_or_create(email=sender_email)
-                    if created:
-                        username_base = sender_email.split('@')[0] if '@' in sender_email else 'unknown_user'
-                        if not username_base:
-                            username_base = f"user_{get_random_string(6)}"
-
-                        user.username = username_base
-                        # Ensure uniqueness
-                        if User.objects.filter(username=user.username).exists():
-                             user.username = f"{username_base}_{get_random_string(4)}"
-                        user.set_password(User.objects.make_random_password())
-                        user.save()
-                        self.stdout.write(self.style.SUCCESS(f"Created new user: {user.username}"))
-
-                    # Threading Logic
-                    match = re.search(r'#(\d+)', subject)
-                    ticket = None
-                    is_reply = False
-                    target_obj = None
-
-                    if match:
-                        try:
-                            existing_ticket = Ticket.objects.get(id=int(match.group(1)))
-                            ticket = existing_ticket
-                            is_reply = True
-                        except Ticket.DoesNotExist:
-                            is_reply = False
-
+                for msg in messages_data:
                     try:
-                        if is_reply:
-                            # Create Comment
-                            target_obj = TicketComment.objects.create(
-                                ticket=ticket,
-                                user=user,
-                                comment=description,
-                                is_internal=False
-                            )
-                            self.stdout.write(self.style.SUCCESS(f"Comment created for Ticket #{ticket.id}"))
+                        msg_id = msg.get('id')
+                        subject = msg.get('subject', 'No Subject')
+                        
+                        sender_email = 'unknown@magmacore.local'
+                        if msg.get('sender') and msg['sender'].get('emailAddress'):
+                            sender_email = msg['sender']['emailAddress'].get('address', sender_email)
+
+                        # 3. Secure User Creation
+                        user = User.objects.filter(email=sender_email).first()
+                        if not user:
+                            username_base = sender_email.split('@')[0] if '@' in sender_email else 'user'
+                            username = username_base
+                            counter = 1
+                            while User.objects.filter(username=username).exists():
+                                username = f"{username_base}_{counter}"
+                                counter += 1
+                            user = User.objects.create_user(username=username, email=sender_email, password=get_random_string(12))
+
+                        body = ""
+                        if msg.get('body') and msg['body'].get('content'):
+                            body = msg['body']['content']
                         else:
-                            # Create New Ticket
-                            ticket = Ticket.objects.create(
-                                title=subject[:200],
-                                description=description,
-                                creator=user,
-                                status=Ticket.Status.OPEN,
-                                priority=Ticket.Priority.MEDIUM
-                            )
-                            target_obj = ticket
-                            self.stdout.write(self.style.SUCCESS(f"Ticket created: #{ticket.id}"))
+                            body = msg.get('bodyPreview', '')
 
-                        # Fetch and Save Attachments
-                        if has_attachments:
-                            attachments_url = f"https://graph.microsoft.com/v1.0/users/{mailbox}/messages/{email_id}/attachments"
+                        # 4. THREADING LOGIC
+                        ticket = None
+                        is_reply = False
+                        
+                        match = re.search(r'#(\d+)', subject)
+                        if match:
                             try:
-                                att_response = requests.get(attachments_url, headers=headers)
-                                att_response.raise_for_status()
-                                attachments = att_response.json().get('value', [])
+                                ticket = Ticket.objects.get(id=match.group(1))
+                                is_reply = True
+                            except Ticket.DoesNotExist:
+                                pass 
 
-                                for att in attachments:
-                                    content_bytes = att.get('contentBytes', '')
-                                    if content_bytes:
-                                        raw_name = att.get('name')
-                                        if not raw_name:
-                                            filename = f"image_{get_random_string(6)}.png"
-                                        else:
-                                            filename = raw_name
+                        target_obj = None
+                        if is_reply and CommentModel:
+                            comment_kwargs = {'ticket': ticket}
+                            if hasattr(CommentModel, 'user'): comment_kwargs['user'] = user
+                            else: comment_kwargs['author'] = user
+                            
+                            if hasattr(CommentModel, 'comment'): comment_kwargs['comment'] = body
+                            else: comment_kwargs['content'] = body
+                            
+                            if hasattr(CommentModel, 'is_internal'): comment_kwargs['is_internal'] = False
+                            elif hasattr(CommentModel, 'is_public'): comment_kwargs['is_public'] = True
+                            
+                            target_obj = CommentModel.objects.create(**comment_kwargs)
+                            self.stdout.write(self.style.SUCCESS(f"Added reply to existing Ticket #{ticket.id}"))
+                        else:
+                            ticket = Ticket.objects.create(title=subject, description=body, creator=user, status=Ticket.Status.OPEN)
+                            target_obj = ticket
+                            self.stdout.write(self.style.SUCCESS(f"Created NEW Ticket #{ticket.id}"))
 
-                                        # Fix missing base64 padding to prevent binascii errors
-                                        content_bytes += "=" * ((4 - len(content_bytes) % 4) % 4)
-                                        decoded_bytes = base64.b64decode(content_bytes)
+                        # 5. AGGRESSIVE ATTACHMENT FETCH (Ignore hasAttachments flag)
+                        att_url = f"https://graph.microsoft.com/v1.0/users/{mailbox}/messages/{msg_id}/attachments"
+                        att_r = requests.get(att_url, headers=headers)
+                        
+                        if att_r.status_code == 200:
+                            for att in att_r.json().get('value', []):
+                                content_bytes = att.get('contentBytes', '')
+                                if content_bytes:
+                                    content_bytes += "=" * ((4 - len(content_bytes) % 4) % 4)
+                                    decoded_bytes = base64.b64decode(content_bytes)
+                                    
+                                    filename = att.get('name') or f"image_{get_random_string(6)}.png"
+                                    attachment = TicketAttachment.objects.create(ticket=ticket, file=ContentFile(decoded_bytes, name=filename), filename=filename)
+                                    self.stdout.write(self.style.SUCCESS(f"Saved attachment: {filename}"))
+                                    
+                                    # Regex CID Replacement
+                                    cid = att.get('contentId')
+                                    if cid:
+                                        clean_cid = cid.strip('<>') 
+                                        short_cid = clean_cid.split('@')[0] if '@' in clean_cid else clean_cid
+                                        
+                                        def replace_cid_in_text(text, full_c, short_c, url):
+                                            if not text: return text
+                                            # Case insensitive regex replace for both full and short versions of the CID
+                                            text = re.sub(re.escape(f"cid:{full_c}"), url, text, flags=re.IGNORECASE)
+                                            text = re.sub(re.escape(f"cid:{short_c}"), url, text, flags=re.IGNORECASE)
+                                            return text
+                                        
+                                        if hasattr(target_obj, 'description'):
+                                            target_obj.description = replace_cid_in_text(target_obj.description, clean_cid, short_cid, attachment.file.url)
+                                        elif hasattr(target_obj, 'comment'):
+                                            target_obj.comment = replace_cid_in_text(target_obj.comment, clean_cid, short_cid, attachment.file.url)
+                                        elif hasattr(target_obj, 'content'):
+                                            target_obj.content = replace_cid_in_text(target_obj.content, clean_cid, short_cid, attachment.file.url)
+                                        
+                                        target_obj.save()
 
-                                        attachment = TicketAttachment.objects.create(
-                                            ticket=ticket,
-                                            file=ContentFile(decoded_bytes, name=filename),
-                                            filename=filename
-                                        )
-                                        self.stdout.write(self.style.SUCCESS(f"Saved attachment: {filename}"))
-
-                                        # Search and replace the broken CID inline image in the target object
-                                        cid = att.get('contentId')
-                                        if cid:
-                                            # Outlook sometimes wraps the ID in angle brackets
-                                            clean_cid = cid.strip('<>')
-                                            if hasattr(target_obj, 'description'):
-                                                target_obj.description = target_obj.description.replace(f"cid:{clean_cid}", attachment.file.url)
-                                            elif hasattr(target_obj, 'comment'):
-                                                target_obj.comment = target_obj.comment.replace(f"cid:{clean_cid}", attachment.file.url)
-                                            elif hasattr(target_obj, 'content'):
-                                                target_obj.content = target_obj.content.replace(f"cid:{clean_cid}", attachment.file.url)
-                                            target_obj.save()
-
-                            except requests.RequestException as e:
-                                self.stdout.write(self.style.ERROR(f"Failed to fetch attachments for {email_id}: {e}"))
-                            except Exception as e:
-                                self.stdout.write(self.style.ERROR(f"Error saving attachment: {e}"))
-
-                        # Mark as Read
-                        patch_url = f"https://graph.microsoft.com/v1.0/users/{mailbox}/messages/{email_id}"
-                        patch_data = {'isRead': True}
-                        requests.patch(patch_url, headers=headers, json=patch_data)
+                        # 6. Mark Email as Read
+                        requests.patch(f"https://graph.microsoft.com/v1.0/users/{mailbox}/messages/{msg_id}", headers=headers, json={'isRead': True})
 
                     except Exception as e:
-                         self.stdout.write(self.style.ERROR(f"Error creating ticket/comment: {e}"))
+                        self.stdout.write(self.style.ERROR(f"Error processing email: {e}"))
 
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"Unexpected error in main loop: {e}"))
-
-            # Sleep for 60 seconds
-            self.stdout.write("Sleeping for 60 seconds...")
+                self.stdout.write(self.style.ERROR(f"Graph API Connection Error: {e}"))
+                
             time.sleep(60)

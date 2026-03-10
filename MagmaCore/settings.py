@@ -189,5 +189,5 @@ CKEDITOR_CONFIGS = {
 # Microsoft Graph API Settings (Email-to-Ticket)
 MS_GRAPH_TENANT_ID = 'e7a8660e-2922-4f29-9d1a-390ec7102b56'
 MS_GRAPH_CLIENT_ID = '3c5528e5-3eb6-4d97-ab05-d8adbe36d30a'
-MS_GRAPH_CLIENT_SECRET = 'your_client_secret_here'
+MS_GRAPH_CLIENT_SECRET = 'uNe8Q~KqsnrD0zBLgWx1MUiCSPbIDEjr9axpGcst'
 MS_GRAPH_MAILBOX = 'support_it@tradecore.co.za'
