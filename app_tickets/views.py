@@ -64,7 +64,7 @@ class TicketDetailView(LoginRequiredMixin, DetailView):
 class TicketAddCommentView(LoginRequiredMixin, CreateView):
     model = TicketComment
     form_class = CommentForm
-    template_name = 'app_tickets/ticket_detail.html' # Fallback, though we usually redirect
+    template_name = 'app_tickets/ticket_detail.html'
 
     def form_valid(self, form):
         ticket = get_object_or_404(Ticket, pk=self.kwargs['pk'])
@@ -78,18 +78,24 @@ class TicketAddCommentView(LoginRequiredMixin, CreateView):
         if not is_internal and ticket.creator and ticket.creator.email:
             # We don't want to email the person who just commented
             if ticket.creator != self.request.user:
-                send_graph_email(
-                    to_email=ticket.creator.email,
-                    subject=f"RE: {ticket.title}",
-                    body_text=form.cleaned_data.get('comment', '')
-                )
+                try:
+                    send_graph_email(
+                        to_email=ticket.creator.email,
+                        subject=f"RE: #{ticket.id} - {ticket.title}",
+                        body_text=form.cleaned_data.get('comment', '')
+                    )
+                except Exception as e:
+                    messages.warning(self.request, f"Comment saved, but email notification failed: {e}")
             elif ticket.assigned_agent and ticket.assigned_agent.email and ticket.assigned_agent != self.request.user:
                 # If creator commented, email assigned agent
-                 send_graph_email(
-                    to_email=ticket.assigned_agent.email,
-                    subject=f"RE: {ticket.title}",
-                    body_text=form.cleaned_data.get('comment', '')
-                )
+                try:
+                     send_graph_email(
+                        to_email=ticket.assigned_agent.email,
+                        subject=f"RE: #{ticket.id} - {ticket.title}",
+                        body_text=form.cleaned_data.get('comment', '')
+                    )
+                except Exception as e:
+                    messages.warning(self.request, f"Comment saved, but email notification failed: {e}")
 
         return redirect('app_tickets:ticket_detail', pk=ticket.pk)
 
@@ -101,7 +107,7 @@ class TicketAddCommentView(LoginRequiredMixin, CreateView):
 class TicketUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
     model = Ticket
     form_class = TicketForm
-    template_name = 'app_tickets/ticket_create.html' # Reuse create template
+    template_name = 'app_tickets/ticket_create.html'
     context_object_name = 'ticket'
 
     def get_form_kwargs(self):

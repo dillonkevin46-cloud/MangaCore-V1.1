@@ -12,6 +12,7 @@ from django.db import close_old_connections
 # Dynamically load the models
 from django.apps import apps
 from app_tickets.models import Ticket, TicketAttachment
+from app_tickets.utils import send_graph_email
 
 User = get_user_model()
 
@@ -36,7 +37,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR("MS Graph API settings are missing."))
             return
 
-        self.stdout.write(self.style.SUCCESS("Starting Aggressive Email Engine (Regex CID & Threading)..."))
+        self.stdout.write(self.style.SUCCESS("Starting Aggressive Email Engine (Regex CID, Threading & Auto-Responder)..."))
 
         while True:
             close_old_connections()
@@ -115,6 +116,15 @@ class Command(BaseCommand):
                             ticket = Ticket.objects.create(title=subject, description=body, creator=user, status=Ticket.Status.OPEN)
                             target_obj = ticket
                             self.stdout.write(self.style.SUCCESS(f"Created NEW Ticket #{ticket.id}"))
+                            
+                            # --- NEW: SEND THE AUTO-RESPONDER RECEIPT ---
+                            try:
+                                auto_reply_text = f"Thank you for contacting IT Support.\n\nYour ticket has been successfully logged. Please reply directly to this email to communicate with our technicians.\n\nOriginal Request:\n{body}"
+                                send_graph_email(sender_email, f"RE: #{ticket.id} - {subject}", auto_reply_text)
+                                self.stdout.write(self.style.SUCCESS(f"Sent auto-reply receipt to {sender_email}"))
+                            except Exception as email_err:
+                                self.stdout.write(self.style.ERROR(f"Failed to send auto-reply: {email_err}"))
+                            # --------------------------------------------
 
                         # 5. AGGRESSIVE ATTACHMENT FETCH (Ignore hasAttachments flag)
                         att_url = f"https://graph.microsoft.com/v1.0/users/{mailbox}/messages/{msg_id}/attachments"
