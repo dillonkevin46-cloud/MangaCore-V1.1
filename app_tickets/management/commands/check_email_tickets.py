@@ -2,6 +2,7 @@ import base64
 import requests
 import time
 import re
+import html  # <--- NEW: Added to fix Exchange escaping
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -9,9 +10,8 @@ from django.core.files.base import ContentFile
 from django.utils.crypto import get_random_string
 from django.db import close_old_connections
 
-# Dynamically load the models
-from django.apps import apps
-from app_tickets.models import Ticket, TicketAttachment
+# EXPLICIT IMPORTS 
+from app_tickets.models import Ticket, TicketAttachment, TicketComment
 from app_tickets.utils import send_graph_email
 
 User = get_user_model()
@@ -20,14 +20,6 @@ class Command(BaseCommand):
     help = 'Check for new emails and process Tickets/Replies via MS Graph API'
 
     def handle(self, *args, **options):
-        try:
-            CommentModel = apps.get_model('app_tickets', 'TicketComment')
-        except LookupError:
-            try:
-                CommentModel = apps.get_model('app_tickets', 'Comment')
-            except LookupError:
-                CommentModel = None
-
         tenant_id = getattr(settings, 'MS_GRAPH_TENANT_ID', None)
         client_id = getattr(settings, 'MS_GRAPH_CLIENT_ID', None)
         client_secret = getattr(settings, 'MS_GRAPH_CLIENT_SECRET', None)
@@ -37,7 +29,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR("MS Graph API settings are missing."))
             return
 
-        self.stdout.write(self.style.SUCCESS("Starting Aggressive Email Engine (Regex CID, Threading & Auto-Responder)..."))
+        self.stdout.write(self.style.SUCCESS("Starting Engine (Impenetrable HTML Machete)..."))
 
         while True:
             close_old_connections()
@@ -80,53 +72,83 @@ class Command(BaseCommand):
                                 counter += 1
                             user = User.objects.create_user(username=username, email=sender_email, password=get_random_string(12))
 
+                        # ----------------------------------------------------
+                        # PHASE 33: IMPENETRABLE HTML CLEANER
+                        # ----------------------------------------------------
                         body = ""
                         if msg.get('body') and msg['body'].get('content'):
-                            body = msg['body']['content']
+                            raw_body = msg['body']['content']
+                            
+                            # Safely unescape weird Microsoft HTML formatting
+                            raw_body = html.unescape(raw_body)
+                            
+                            # Annihilate the Head, Style, HTML Comments, HTML, Body, and Meta tags
+                            raw_body = re.compile(r'<head[^>]*>.*?</head>', re.IGNORECASE | re.DOTALL).sub('', raw_body)
+                            raw_body = re.compile(r'<style[^>]*>.*?</style>', re.IGNORECASE | re.DOTALL).sub('', raw_body)
+                            raw_body = re.compile(r'', re.IGNORECASE | re.DOTALL).sub('', raw_body)
+                            raw_body = re.compile(r'</?html[^>]*>', re.IGNORECASE).sub('', raw_body)
+                            raw_body = re.compile(r'</?body[^>]*>', re.IGNORECASE).sub('', raw_body)
+                            raw_body = re.compile(r'<meta[^>]*>', re.IGNORECASE).sub('', raw_body)
+                            
+                            # Physically sever the string at the signature/reply line
+                            cutoffs = [
+                                r'<div[^>]*id="Signature"',
+                                r'<div[^>]*class="Signature"',
+                                r'<div[^>]*id="appendonsend"',
+                                r'<div[^>]*id="divRplyFwdMsg"',
+                                r'<hr[^>]*tabindex="-1"',
+                                r'<div[^>]*class="gmail_quote"',
+                                r'<blockquote',
+                                r'<div[^>]*class="yahoo_quoted"'
+                            ]
+                            
+                            for cutoff in cutoffs:
+                                raw_body = re.compile(cutoff, re.IGNORECASE).split(raw_body)[0]
+                                
+                            body = raw_body.strip()
                         else:
                             body = msg.get('bodyPreview', '')
+                        # ----------------------------------------------------
 
-                        # 4. THREADING LOGIC
+                        # 4. THREADING LOGIC 
                         ticket = None
                         is_reply = False
-                        
-                        match = re.search(r'#(\d+)', subject)
-                        if match:
-                            try:
-                                ticket = Ticket.objects.get(id=match.group(1))
-                                is_reply = True
-                            except Ticket.DoesNotExist:
-                                pass 
-
                         target_obj = None
-                        if is_reply and CommentModel:
-                            comment_kwargs = {'ticket': ticket}
-                            if hasattr(CommentModel, 'user'): comment_kwargs['user'] = user
-                            else: comment_kwargs['author'] = user
-                            
-                            if hasattr(CommentModel, 'comment'): comment_kwargs['comment'] = body
-                            else: comment_kwargs['content'] = body
-                            
-                            if hasattr(CommentModel, 'is_internal'): comment_kwargs['is_internal'] = False
-                            elif hasattr(CommentModel, 'is_public'): comment_kwargs['is_public'] = True
-                            
-                            target_obj = CommentModel.objects.create(**comment_kwargs)
-                            self.stdout.write(self.style.SUCCESS(f"Added reply to existing Ticket #{ticket.id}"))
+                        
+                        self.stdout.write(f"\n--- Processing Email: {subject} ---")
+                        match = re.search(r'#(\d+)', subject)
+                        
+                        if match:
+                            found_id = match.group(1)
+                            self.stdout.write(f"Regex found Ticket ID #{found_id} in subject.")
+                            try:
+                                ticket = Ticket.objects.get(id=found_id)
+                                is_reply = True
+                                self.stdout.write(self.style.SUCCESS(f"Successfully matched with database Ticket #{ticket.id}"))
+                            except Ticket.DoesNotExist:
+                                self.stdout.write(self.style.WARNING(f"Ticket #{found_id} does NOT exist. Treating as new ticket."))
+
+                        if is_reply:
+                            target_obj = TicketComment.objects.create(
+                                ticket=ticket,
+                                user=user,
+                                comment=body,
+                                is_internal=False
+                            )
+                            self.stdout.write(self.style.SUCCESS(f"Added clean reply to Ticket #{ticket.id}"))
                         else:
                             ticket = Ticket.objects.create(title=subject, description=body, creator=user, status=Ticket.Status.OPEN)
                             target_obj = ticket
-                            self.stdout.write(self.style.SUCCESS(f"Created NEW Ticket #{ticket.id}"))
+                            self.stdout.write(self.style.SUCCESS(f"Created brand NEW Ticket #{ticket.id}"))
                             
-                            # --- NEW: SEND THE AUTO-RESPONDER RECEIPT ---
                             try:
-                                auto_reply_text = f"Thank you for contacting IT Support.\n\nYour ticket has been successfully logged. Please reply directly to this email to communicate with our technicians.\n\nOriginal Request:\n{body}"
+                                auto_reply_text = f"Thank you for contacting IT Support.\n\nYour ticket has been successfully logged. Please reply directly to this email to communicate with our technicians.\n\n"
                                 send_graph_email(sender_email, f"RE: #{ticket.id} - {subject}", auto_reply_text)
-                                self.stdout.write(self.style.SUCCESS(f"Sent auto-reply receipt to {sender_email}"))
+                                self.stdout.write(self.style.SUCCESS(f"Sent Auto-Responder to {sender_email}"))
                             except Exception as email_err:
-                                self.stdout.write(self.style.ERROR(f"Failed to send auto-reply: {email_err}"))
-                            # --------------------------------------------
+                                self.stdout.write(self.style.ERROR(f"Failed to send Auto-Responder: {email_err}"))
 
-                        # 5. AGGRESSIVE ATTACHMENT FETCH (Ignore hasAttachments flag)
+                        # 5. ANTI-DUPLICATION ATTACHMENT FETCH
                         att_url = f"https://graph.microsoft.com/v1.0/users/{mailbox}/messages/{msg_id}/attachments"
                         att_r = requests.get(att_url, headers=headers)
                         
@@ -138,28 +160,44 @@ class Command(BaseCommand):
                                     decoded_bytes = base64.b64decode(content_bytes)
                                     
                                     filename = att.get('name') or f"image_{get_random_string(6)}.png"
-                                    attachment = TicketAttachment.objects.create(ticket=ticket, file=ContentFile(decoded_bytes, name=filename), filename=filename)
-                                    self.stdout.write(self.style.SUCCESS(f"Saved attachment: {filename}"))
+                                    file_size = len(decoded_bytes)
                                     
-                                    # Regex CID Replacement
+                                    # CHECK FOR DUPLICATES ON THIS TICKET
+                                    is_duplicate = False
+                                    attachment = None
+                                    
+                                    for existing_att in ticket.attachments.all():
+                                        try:
+                                            # If exact filename and exact size already exist, it's a duplicate signature image!
+                                            if existing_att.filename == filename and existing_att.file.size == file_size:
+                                                is_duplicate = True
+                                                attachment = existing_att
+                                                break
+                                        except Exception:
+                                            pass
+                                            
+                                    if not is_duplicate:
+                                        attachment = TicketAttachment.objects.create(ticket=ticket, file=ContentFile(decoded_bytes, name=filename), filename=filename)
+                                        self.stdout.write(self.style.SUCCESS(f"Saved NEW attachment: {filename}"))
+                                    else:
+                                        self.stdout.write(f"Skipped duplicate signature image: {filename}")
+                                    
+                                    # CID MAPPING (Works for both new and duplicate images)
                                     cid = att.get('contentId')
-                                    if cid:
+                                    if cid and attachment:
                                         clean_cid = cid.strip('<>') 
                                         short_cid = clean_cid.split('@')[0] if '@' in clean_cid else clean_cid
                                         
                                         def replace_cid_in_text(text, full_c, short_c, url):
                                             if not text: return text
-                                            # Case insensitive regex replace for both full and short versions of the CID
                                             text = re.sub(re.escape(f"cid:{full_c}"), url, text, flags=re.IGNORECASE)
                                             text = re.sub(re.escape(f"cid:{short_c}"), url, text, flags=re.IGNORECASE)
                                             return text
                                         
-                                        if hasattr(target_obj, 'description'):
-                                            target_obj.description = replace_cid_in_text(target_obj.description, clean_cid, short_cid, attachment.file.url)
-                                        elif hasattr(target_obj, 'comment'):
+                                        if is_reply:
                                             target_obj.comment = replace_cid_in_text(target_obj.comment, clean_cid, short_cid, attachment.file.url)
-                                        elif hasattr(target_obj, 'content'):
-                                            target_obj.content = replace_cid_in_text(target_obj.content, clean_cid, short_cid, attachment.file.url)
+                                        else:
+                                            target_obj.description = replace_cid_in_text(target_obj.description, clean_cid, short_cid, attachment.file.url)
                                         
                                         target_obj.save()
 
@@ -167,9 +205,9 @@ class Command(BaseCommand):
                         requests.patch(f"https://graph.microsoft.com/v1.0/users/{mailbox}/messages/{msg_id}", headers=headers, json={'isRead': True})
 
                     except Exception as e:
-                        self.stdout.write(self.style.ERROR(f"Error processing email: {e}"))
+                        self.stdout.write(self.style.ERROR(f"Error processing individual email: {e}"))
 
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"Graph API Connection Error: {e}"))
+                self.stdout.write(self.style.ERROR(f"Graph API Error: {e}"))
                 
             time.sleep(60)
